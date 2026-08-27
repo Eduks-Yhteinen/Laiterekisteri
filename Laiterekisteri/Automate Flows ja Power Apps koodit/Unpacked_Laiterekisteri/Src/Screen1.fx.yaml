@@ -1,0 +1,503 @@
+Screen1 As screen:
+
+    Nollaa As icon.CancelBadge:
+        Icon: =Icon.CancelBadge
+        OnSelect: =!IsBlank(varDeviceData)
+        Visible: =!IsBlank(varDeviceData)
+        X: =40
+        Y: =40
+        ZIndex: =1
+
+    Rectangle2 As rectangle:
+        BorderColor: =RGBA(116, 116, 116, 1)
+        BorderThickness: =2
+        Fill: =RGBA(0, 0, 0, 0)
+        Height: =394
+        Width: =570
+        X: =35
+        Y: =164
+        ZIndex: =2
+
+    Rekisteröinti As button:
+        Height: =218
+        OnSelect: |-
+            =// 1. First, check if they actually scanned a serial number
+            If(
+                IsBlank(varScannedSerial),
+                Notify("Virhe: Skannaa laite ensin!", NotificationType.Error),
+            
+                // 2. Route based on the Dropdown selection
+                Switch(
+                    Laite_tyypin_valinta.Selected.Value,
+                    
+                    // 🪟 WINDOWS
+                    "Windows",
+                    Patch(
+                        Today_Win, 
+                        Defaults(Today_Win), 
+                        { 
+                            Title: varScannedSerial // This magically fills your "Laitteen sarjanumero" column!
+                        }
+                    );
+                    Notify("Uusi laite (" & varScannedSerial & ") tallennettu Windows-listalle!", NotificationType.Success),
+            
+                    // 🍎 APPLE
+                    "Apple",
+                    Patch(
+                        Today_iOS, 
+                        Defaults(Today_iOS), 
+                        { 
+                            Title: varScannedSerial // This magically fills your "Serial number" column!
+                        }
+                    );
+                    Notify("Uusi laite (" & varScannedSerial & ") tallennettu Apple-listalle!", NotificationType.Success),
+            
+                    // 🤖 ANDROID
+                    "Android",
+                    Patch(
+                        Today_Android, 
+                        Defaults(Today_Android), 
+                        { 
+                            Title: varScannedSerial // This magically fills your "Serial number" column!
+                        }
+                    );
+                    Notify("Uusi laite (" & varScannedSerial & ") tallennettu Android-listalle!", NotificationType.Success),
+            
+                    // 💻 CHROMEBOOK (Placeholder)
+                    "Chromebook",
+                    Patch(
+                        Today_Chromebook, 
+                        Defaults(Today_Chromebook), 
+                        { 
+                            Title: varScannedSerial // This magically fills your "Otsikko" column!
+                        }
+                    );
+                    Notify("Uusi laite (" & varScannedSerial & ") tallennettu Chromebook-listalle!", NotificationType.Success),
+            
+                    // ⚠️ IF NOTHING MATCHES
+                    // Default action if they left it on "Valitse tyyppi..."
+                    Notify("Virhe: Valitse laitetyyppi pudotusvalikosta ennen tallennusta!", NotificationType.Error)
+                )
+            );
+            
+            // 3. Reset the scanner and dropdown for the next device
+            Set(varScannedSerial, Blank());
+            Reset(Laite_tyypin_valinta);
+        Size: =24
+        Text: ="Register device"
+        Visible: =varIsAuthorized
+        Width: =236
+        X: =35
+        Y: =861
+        ZIndex: =3
+
+    "BarcodeReader1 As 'Barcode Reader'":
+        BorderFillColor: =RGBA(47, 81, 151, 1)
+        DisabledBorderColor: =RGBA(166, 166, 166, 1)
+        DisabledContentColor: =RGBA(166, 166, 166, 1)
+        DisabledFillColor: =RGBA(244, 244, 244, 1)
+        DisplayMode: =DisplayMode.Edit
+        FillColor: =RGBA(127, 178, 57, 1)
+        Height: =218
+        HoverBorderColor: =RGBA(88, 115, 171, 1)
+        HoverContentColor: =RGBA(255, 255, 255, 1)
+        HoverFillColor: =RGBA(47, 81, 151, 1)
+        OnCancel: =false
+        OnScan: |-
+            =// 1) Lue skannauksen arvo
+            Set(
+                varScannedSerial,
+                If(
+                    CountRows(BarcodeReader1.Barcodes) > 0,
+                    First(BarcodeReader1.Barcodes).Value,
+                    Blank()
+                )
+            );
+            
+            // 2) Jos ei skannausta → ilmoitus + kevyt siivous, EI flow-kutsua
+            If(
+                IsBlank(varScannedSerial),
+                Notify("⚠️ Viivakoodia ei luettu.", NotificationType.Warning);
+                Set(varRawResponse, "");
+                Set(varParsedData, Blank());
+                Set(varDeviceData, Blank())
+            );
+            
+            // 3) Jos skannaus ON → aja Flow (V1: positionaalinen) ja käsittele tulos
+            If(
+                !IsBlank(varScannedSerial),
+            
+                // 3a) Aja Flow ja tallenna raakateksti
+                Set(
+                    varRawResponse,
+                    Coalesce(
+                        'TheSearchFlowforPA'.Run(varScannedSerial).device_json,
+                        ""
+                    )
+                );
+            
+                // 3b) Ei löytynyt
+                If(
+                    IsBlank(varRawResponse) || varRawResponse = "{}" || varRawResponse = "[]",
+                    Notify("❌ Not found in any register.", NotificationType.Error);
+                    Set(varParsedData, Blank());
+                    Set(varDeviceData, Blank()),
+            
+                    // 3c) Löytyi → parse + cast + ilmoitus
+                    Set(varParsedData, ParseJSON(varRawResponse));
+                    Set(
+                        varDeviceData,
+                        {
+                            Verkkonimi: Text(varParsedData.Verkkonimi),
+                            DeviceName: Text(varParsedData.'Device name'),
+                            Model:      Text(varParsedData.Model)
+                            // Lisää muut kentät tarvittaessa
+                        }
+                    );
+                    Notify(
+                        "✅ Device Found: " &
+                        Coalesce(
+                            varDeviceData.Verkkonimi,
+                            varDeviceData.DeviceName,
+                            varDeviceData.Model,
+                            "Unknown Device"
+                        ),
+                        NotificationType.Success
+                    )
+                );
+            
+                // (Valinnainen) tyhjennä käyttömielessä skannauksen välitila
+                Set(varScannedSerial, Blank())
+            );
+        PressedBorderColor: =RGBA(56, 96, 178, 1)
+        PressedContentColor: =RGBA(56, 96, 178, 1)
+        PressedFillColor: =RGBA(255, 255, 255, 1)
+        ScanningMode: ="BarcodeReaderScanningMode.AutomaticallyScan"
+        TextColor: =RGBA(255, 255, 255, 1)
+        Width: =236
+        X: =369
+        Y: =861
+        ZIndex: =4
+
+    txtSearchSerial As text:
+        Clear: =true
+        Default: =
+        Height: =70
+        HintText: ="Syötä sarjanumero..."
+        Size: =21
+        Width: =365
+        X: =152
+        Y: =753
+        ZIndex: =5
+
+    Laite_tyypin_valinta As dropdown:
+        Height: =70
+        Items: =["Valitse tyyppi...", "Windows", "Apple", "Android", "Chromebook"]
+        Size: =21
+        Visible: =varIsAuthorized
+        Width: =570
+        X: =35
+        Y: =591
+        ZIndex: =6
+
+    Laiterekisteri_otsikko As label:
+        Align: =Align.Center
+        Height: =70
+        Size: =21
+        Text: ="LAITEREKISTERI"
+        Width: =468
+        X: =72
+        Y: =40
+        ZIndex: =7
+
+    Sarjanumero As label:
+        Height: =70
+        Size: =21
+        Text: |-
+            ="Sarjanumero: " & varScannedSerial
+        Visible: =!IsBlank(varDeviceData)
+        Width: =560
+        X: =40
+        Y: =220
+        ZIndex: =8
+
+    "'Verkkonimi/Malli' As label":
+        Height: =70
+        Size: =21
+        Text: |-
+            =With(
+                {
+                    // 1. Identify the Hardware ID based on the JSON keys
+                    RawID: Coalesce(
+                        Text(varParsedData.Model),               // What we told the Flow to send
+                        Text(varParsedData.Malli),               // In case it got translated in the Flow
+                        Text(varParsedData.'0.Model'),           // The old Windows key
+                        Text(varParsedData.ProductName),         // Apple
+                        Text(varParsedData.'Työaseman malli')    // Legacy fallback
+                    ),
+                    // 2. Identify the Device Name/User
+                    DeviceName: Coalesce(
+                        Text(varParsedData.Verkkonimi),
+                        Text(varParsedData.'Device name')
+                    )
+                },
+                With(
+                    {
+                        // 3. Search SharePoint using that RawID
+                        MatchedAndroid: LookUp(colAndroidEOL, Model = RawID || 'Universal model name' = RawID),
+                        MatchedApple: LookUp(colAppleEOL, Title = RawID || Model = RawID)
+                    },
+                    With(
+                        {
+                            // 4. Translate to Friendly Name if found
+                            FriendlyModel: Coalesce(
+                                MatchedAndroid.'Universal model name', 
+                                MatchedApple.Title, 
+                                RawID
+                            )
+                        },
+                        // 5. Display Result dynamically
+                        If(
+                            !IsBlank(DeviceName) && !IsBlank(FriendlyModel), "Verkkonimi: " & DeviceName & " / Malli: " & FriendlyModel,
+                            !IsBlank(DeviceName), "Verkkonimi: " & DeviceName,
+                            !IsBlank(FriendlyModel), "Malli: " & FriendlyModel,
+                            ""
+                        )
+                    )
+                )
+            )
+        Visible: =!IsBlank(varDeviceData)
+        Width: =560
+        X: =40
+        Y: =290
+        ZIndex: =9
+
+    "'Ostopäivä/Enrollment Date' As label":
+        Height: =70
+        Size: =21
+        Text: |-
+            =With(
+                {
+                    // 1. Pick the first available Purchase Date field
+                    RawP: Coalesce(
+                        Text(varParsedData.Ostopäivä),
+                        Text(varParsedData.PurchaseDate),
+                        Text(varParsedData.'Purchase date')
+                    ),
+                    // 2. Pick the first available Enrollment Date field
+                    RawE: Coalesce(
+                        Text(varParsedData.'Enrollment date'),
+                        Text(varParsedData.EnrollmentDate),
+                        Text(varParsedData.'Enrolled date')
+                    )
+                },
+                If(
+                    !IsBlank(RawP),
+                    "Ostopäivä: " & 
+                        If(IsNumeric(RawP),
+                            Text(DateAdd(DateTimeValue("12/30/1899"), Value(RawP, "en-US"), TimeUnit.Days), "d.m.yyyy"),
+                            Text(DateValue(RawP), "d.m.yyyy")
+                        ),
+                    !IsBlank(RawE),
+                    "Enrolled: " & 
+                        If(IsNumeric(RawE),
+                            Text(DateAdd(DateTimeValue("12/30/1899"), Value(RawE, "en-US"), TimeUnit.Days), "d.m.yyyy"),
+                            Text(DateValue(RawE), "d.m.yyyy")
+                        ),
+                    ""
+                )
+            )
+        Visible: =!IsBlank(varDeviceData)
+        Width: =560
+        X: =40
+        Y: =360
+        ZIndex: =10
+
+    Vuokranpäättyminen As label:
+        Fill: |-
+            =With(
+                {
+                    // 1. We now know for sure the Flow sends 'ProductName' for iPads
+                    RawID: Trim(
+                        Coalesce(
+                            Text(varParsedData.ProductName),      // Apple ID (iPad11,1)
+                            Text(varParsedData.Model),            // Android/Windows Model
+                            Text(varParsedData.'Työaseman malli'), // Windows specific
+                            Text(varParsedData.'Prodcut name')    // Typo fallback
+                        )
+                    )
+                },
+                If(
+                    // 2. Check the Collections using the internal name 'Title'
+                    !IsBlank(RawID) && 
+                    (
+                        // Check Apple Collection (Using internal 'Title' name)
+                        !IsBlank(LookUp(colAppleEOL, Title = RawID || Model = RawID)) ||
+                        
+                        // Check Android Collection
+                        !IsBlank(LookUp(colAndroidEOL, Model = RawID || 'Universal model name' = RawID))
+                        
+                        // Note: If you have a Windows EOL list, you can add a third LookUp here!
+                    ),
+                    
+                    // 3. Result
+                    Color.Red,        // (Use "⚠️ KIELLETTY MALLI" here for the Text property)
+                    Color.Transparent // (Use "" here for the Text property)
+                )
+            )
+        Height: =70
+        Size: =21
+        Text: |+
+            =With(
+                {
+                    // 1. Identify the Hardware ID for the EOL check
+                    RawID: Coalesce(
+                Text(varParsedData.ProductName),
+                Text(varParsedData.Model),
+                Text(varParsedData.'Työaseman malli')
+            ),
+                    // 2. Identify the Rent Date from various possible JSON keys
+                    RawRentDate: Coalesce(
+                        Text(varParsedData.'Vuokrauksen päättymispäivämäärä_x003a_'),
+                        Text(varParsedData.Vuokranpäättyminen),
+                        Text(varParsedData.Vuokranpaattyminen)
+                    )
+                },
+                With(
+                    {
+                        // 3. Clean the date input (removing spaces, fixing commas) for potential Excel serials
+            
+                        CleanedDateInput: Substitute(
+                            Substitute(
+                                Trim(Substitute(RawRentDate, Char(160), "")),
+                                " ", ""
+                            ),
+                            ",", "."
+                        )
+            
+                    },
+                    If(
+                // --- PRIORITY 1: Check End of Life ---
+                !IsBlank(RawID) &&
+                (
+                    // For Apple
+                    !IsBlank(LookUp(colAppleEOL, Title = RawID || Model = RawID)) ||
+                    // For Android
+                    !IsBlank(LookUp('And_end-of-life', Model = RawID || 'Universal model name' = RawID))
+                ),
+                "⚠️ KIELLETTY MALLI / END OF LIFE",
+                        // --- PRIORITY 2: Handle Excel Serial Numbers (Numeric) ---
+                        IsNumeric(CleanedDateInput) && !IsBlank(CleanedDateInput),
+                        "Päättymispäivämäärä: " & Text(
+                            DateAdd(
+                                DateTimeValue("12/30/1899"),
+                                Value(CleanedDateInput, "en-US"),
+                                TimeUnit.Days
+                            ),
+            
+                            "d.m.yyyy"
+                        ),
+                        // --- PRIORITY 3: Handle Standard Date Text ---
+                        !IsBlank(RawRentDate),
+                        "Päättymispäivämäärä: " & Text(
+                            IfError(
+                                DateValue(RawRentDate),
+                                IfError(
+                                    DateTimeValue(RawRentDate),
+                                    RawRentDate // If parsing fails, just show the raw text
+                                )
+                            ),
+                            "d.m.yyyy"
+                        ),
+                        // --- FALLBACK ---
+                        ""  
+                    )
+                )
+            )
+            
+        Width: =560
+        X: =40
+        Y: =430
+        ZIndex: =11
+
+    Eduks_Logo As image:
+        Height: =131
+        Image: ='Copy of eduks_tausta_valk_1080'
+        Width: =171
+        X: =434
+        Y: =9
+        ZIndex: =12
+
+    SearchSerialIcon As icon.Search:
+        DisplayMode: =If(varLoading, DisplayMode.Disabled, DisplayMode.Edit)
+        Height: =70
+        Icon: =Icon.Search
+        OnSelect: |-
+            =// 1) Start loading
+            Set(varLoading, true);
+            
+            // 2) Read input text safely
+            Set(
+                varScannedSerial,
+                Trim(txtSearchSerial.Text)
+            );
+            
+            // 3) If empty input → notify + clear
+            If(
+                IsBlank(varScannedSerial),
+                Notify("⚠️ Syötä sarjanumero.", NotificationType.Warning);
+                Set(varRawResponse, "");
+                Set(varParsedData, Blank());
+                Set(varDeviceData, Blank());
+                Set(varLoading, false);
+                Exit()        // Lopettaa suorituksen ilman virheitä
+            );
+            
+            // 4) Start Flow (V1 syntaksi)
+            Set(
+                varRawResponse,
+                Coalesce(
+                    'TheSearchFlowforPA'.Run(varScannedSerial).device_json
+                )
+            );
+            
+            // 5) Käsittely
+            If(
+                IsBlank(varRawResponse) || varRawResponse = "{}" || varRawResponse = "[]",
+                // CASE A: Not found
+                Notify("❌ Ei löytynyt", NotificationType.Error);
+                Set(varParsedData, Blank());
+                Set(varDeviceData, Blank()),
+            
+                // CASE B: Found
+            Set(varParsedData, ParseJSON(varRawResponse));
+            Set(
+                varDeviceData,
+                {
+                    Verkkonimi: Text(varParsedData.Verkkonimi),
+                    DeviceName: Text(varParsedData.'Device name'),
+                    // Check both cases for Model/model
+                    Model: Coalesce(Text(varParsedData.Model), Text(varParsedData.model)),
+                    // ADD THIS: Apple usually uses productName
+                    ProductName: Text(varParsedData.productName)
+                }
+            );
+                Notify(
+                    "✅ Löytyi: " &
+                    Coalesce(
+                        varDeviceData.Verkkonimi,
+                        varDeviceData.DeviceName,
+                        varDeviceData.Model,
+                        "Tuntematon laite"
+                    ),
+                    NotificationType.Success
+                )
+            );
+            
+            // 6) Stop loading
+            Set(varLoading, false);
+        Width: =70
+        X: =72
+        Y: =753
+        ZIndex: =13
+

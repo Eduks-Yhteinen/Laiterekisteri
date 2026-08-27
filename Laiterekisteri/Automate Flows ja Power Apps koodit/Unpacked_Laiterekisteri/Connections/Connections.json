@@ -1,0 +1,107 @@
+{
+  "2b200daf-ab4a-418d-88c5-78ce2e37e2c6": {
+    "appActions": [
+      "providers/PowerPlatform.Governance/Operations/Read",
+      "providers/PowerPlatform.Governance/Operations/Write"
+    ],
+    "connectionRef": {
+      "apiTier": "Standard",
+      "displayName": "SharePoint",
+      "iconUri": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1813/1.0.1813.4743/sharepointonline/icon.png",
+      "id": "/providers/microsoft.powerapps/apis/shared_sharepointonline",
+      "parameterHints": {},
+      "parameterHintsV2": {}
+    },
+    "datasets": {
+      "https://lappeefi.sharepoint.com/sites/Laiterekisteri": {
+        "dataSources": {
+          "And_end-of-life": {
+            "tableName": "c739cddb-c516-4321-af25-72721a775502"
+          },
+          "iOS_end-of-life": {
+            "tableName": "15202ff4-3e9f-4b85-aef0-e866eb1e16cb"
+          },
+          "Today_Android": {
+            "tableName": "91a5da85-9d80-4c38-9747-4ad28ed2555a"
+          },
+          "Today_Chromebook": {
+            "tableName": "94549210-da29-4e40-9fa4-be74bfce6567"
+          },
+          "Today_iOS": {
+            "tableName": "6c33bc5a-885e-4904-80a0-ac3275bd3454"
+          },
+          "Today_Win": {
+            "tableName": "609a6198-4de2-4632-a06b-7432374e5946"
+          }
+        }
+      }
+    },
+    "dataSources": [
+      "iOS_end-of-life",
+      "And_end-of-life",
+      "Today_Android",
+      "Today_Chromebook",
+      "Today_iOS",
+      "Today_Win"
+    ],
+    "dependencies": {},
+    "dependents": [],
+    "id": "2b200daf-ab4a-418d-88c5-78ce2e37e2c6"
+  },
+  "462edf83-7ef0-4356-939d-c2ca6a643333": {
+    "appActions": [
+      "ListGroupMembers"
+    ],
+    "connectionRef": {
+      "apiTier": "Standard",
+      "displayName": "Office 365 Groups",
+      "iconUri": "https://conn-afd-prod-endpoint-bmc9bqahasf3grgk.b01.azurefd.net/releases/v1.0.1777/1.0.1777.4410/office365groups/icon.png",
+      "id": "/providers/microsoft.powerapps/apis/shared_office365groups",
+      "parameterHints": {},
+      "parameterHintsV2": {}
+    },
+    "datasets": {},
+    "dataSources": [
+      "Office365Groups"
+    ],
+    "dependencies": {},
+    "dependents": [],
+    "id": "462edf83-7ef0-4356-939d-c2ca6a643333"
+  },
+  "dceaede8-5f48-497f-86ff-2ecc36dd39b5": {
+    "appActions": [
+      "Run"
+    ],
+    "connectionRef": {
+      "apiTier": "Standard",
+      "displayName": "Logic flows",
+      "iconUri": "https://conn-afd-prod-endpoint-bmc9bqahasf3grgk.b01.azurefd.net/v1.0.1774/1.0.1774.4397/logicflows/icon.png",
+      "id": "/providers/microsoft.powerapps/apis/shared_logicflows",
+      "parameterHints": {
+        "workflowDisplayName": {
+          "value": "The Search Flow for PA"
+        },
+        "workflowEntityId": {},
+        "workflowName": {
+          "value": "e997e3b8-1c28-46c1-847f-5d2196fceac0"
+        }
+      },
+      "parameterHintsV2": {
+        "workflowDisplayName": {
+          "value": "The Search Flow for PA"
+        },
+        "workflowEntityId": {},
+        "workflowName": {
+          "value": "e997e3b8-1c28-46c1-847f-5d2196fceac0"
+        }
+      }
+    },
+    "datasets": {},
+    "dataSources": [
+      "TheSearchFlowforPA"
+    ],
+    "dependencies": {},
+    "dependents": [],
+    "id": "dceaede8-5f48-497f-86ff-2ecc36dd39b5"
+  }
+}

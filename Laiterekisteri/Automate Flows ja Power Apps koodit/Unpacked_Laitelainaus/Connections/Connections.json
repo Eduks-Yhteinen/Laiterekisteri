@@ -1,0 +1,127 @@
+{
+  "1d3d0b69-3857-40f3-80eb-57d33ac966ce": {
+    "appActions": [
+      "providers/PowerPlatform.Governance/Operations/Read",
+      "providers/PowerPlatform.Governance/Operations/Write"
+    ],
+    "connectionRef": {
+      "apiTier": "Standard",
+      "displayName": "SharePoint",
+      "iconUri": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1813/1.0.1813.4743/sharepointonline/icon.png",
+      "id": "/providers/microsoft.powerapps/apis/shared_sharepointonline",
+      "parameterHints": {},
+      "parameterHintsV2": {}
+    },
+    "datasets": {
+      "https://lappeefi.sharepoint.com/sites/Laiterekisteri": {
+        "dataSources": {
+          "Lainalaitteet": {
+            "tableName": "8c10a116-c4f4-4606-af32-c09d003a63ea"
+          },
+          "Lainausloki": {
+            "tableName": "c094544c-05b5-4b86-b992-49eb98b8f8ba"
+          }
+        }
+      }
+    },
+    "dataSources": [
+      "Lainausloki",
+      "Lainalaitteet"
+    ],
+    "dependencies": {},
+    "dependents": [],
+    "id": "1d3d0b69-3857-40f3-80eb-57d33ac966ce"
+  },
+  "4babb6d7-7065-452e-9412-dabff85e73dd": {
+    "appActions": [
+      "Run"
+    ],
+    "connectionRef": {
+      "apiTier": "Standard",
+      "displayName": "Logic flows",
+      "iconUri": "https://conn-afd-prod-endpoint-bmc9bqahasf3grgk.b01.azurefd.net/v1.0.1774/1.0.1774.4397/logicflows/icon.png",
+      "id": "/providers/microsoft.powerapps/apis/shared_logicflows",
+      "parameterHints": {
+        "workflowDisplayName": {
+          "value": "Intune_RemovePrimaryUser"
+        },
+        "workflowEntityId": {},
+        "workflowName": {
+          "value": "8cd26af7-996f-4896-a4f0-b47f2d23ee3c"
+        }
+      },
+      "parameterHintsV2": {
+        "workflowDisplayName": {
+          "value": "Intune_RemovePrimaryUser"
+        },
+        "workflowEntityId": {},
+        "workflowName": {
+          "value": "8cd26af7-996f-4896-a4f0-b47f2d23ee3c"
+        }
+      }
+    },
+    "datasets": {},
+    "dataSources": [
+      "Copyof-Intune_SetPrimaryUser"
+    ],
+    "dependencies": {},
+    "dependents": [],
+    "id": "4babb6d7-7065-452e-9412-dabff85e73dd"
+  },
+  "7ccad38e-d72f-4fd0-84c7-4d3320bcab62": {
+    "appActions": [
+      "SearchUser"
+    ],
+    "connectionRef": {
+      "apiTier": "Standard",
+      "displayName": "Office 365 Users",
+      "iconUri": "https://static.powerapps.com/resource/ppcr/releases/v1.0.1807/1.0.1807.4725/office365users/icon.png",
+      "id": "/providers/microsoft.powerapps/apis/shared_office365users",
+      "parameterHints": {},
+      "parameterHintsV2": {}
+    },
+    "datasets": {},
+    "dataSources": [
+      "Office365Users"
+    ],
+    "dependencies": {},
+    "dependents": [],
+    "id": "7ccad38e-d72f-4fd0-84c7-4d3320bcab62"
+  },
+  "dbf404b4-4d80-433b-9b6c-37223581731d": {
+    "appActions": [
+      "Run"
+    ],
+    "connectionRef": {
+      "apiTier": "Standard",
+      "displayName": "Logic flows",
+      "iconUri": "https://conn-afd-prod-endpoint-bmc9bqahasf3grgk.b01.azurefd.net/v1.0.1774/1.0.1774.4397/logicflows/icon.png",
+      "id": "/providers/microsoft.powerapps/apis/shared_logicflows",
+      "parameterHints": {
+        "workflowDisplayName": {
+          "value": "Intune_SetPrimaryUser"
+        },
+        "workflowEntityId": {},
+        "workflowName": {
+          "value": "90b6096e-28be-484e-8960-32490e2efaab"
+        }
+      },
+      "parameterHintsV2": {
+        "workflowDisplayName": {
+          "value": "Intune_SetPrimaryUser"
+        },
+        "workflowEntityId": {},
+        "workflowName": {
+          "value": "90b6096e-28be-484e-8960-32490e2efaab"
+        }
+      }
+    },
+    "datasets": {},
+    "dataSources": [
+      "Intune_SetPrimaryUser"
+    ],
+    "dependencies": {},
+    "dependents": [],
+    "id": "dbf404b4-4d80-433b-9b6c-37223581731d"
+  }
+}

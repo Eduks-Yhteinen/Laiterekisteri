@@ -1,0 +1,52 @@
+# ************************************************************************************************
+# Warning: YAML source code for Canvas Apps should only be used to review changes made within Power Apps Studio and for minor edits (Preview).
+# Use the maker portal to create and edit your Power Apps.
+# 
+# The schema file for Canvas Apps is available at https://go.microsoft.com/fwlink/?linkid=2304907
+# 
+# For more information, visit https://go.microsoft.com/fwlink/?linkid=2292623
+# ************************************************************************************************
+Screens:
+  Screen_Aloitus:
+    Properties:
+      LoadingSpinnerColor: =RGBA(56, 96, 178, 1)
+    Children:
+      - BarcodeReader1:
+          Control: BarcodeReader@1.0.25
+          Properties:
+            FillColor: =RGBA(127, 178, 57, 1)
+            Height: =249
+            OnScan: "=// 1. Clear variables using the correct methods\r\nUpdateContext({varLainaaja: \"\", varYksikko: \"\", varMessage: \"\"});\r\nSet(varLastLoan, Blank()); // We use SET because this is a Global variable\r\n\r\n// 2. Find the device\r\nWith(\r\n    {\r\n        LoytynytLaite: LookUp(Lainalaitteet, Sarjanumero = First(BarcodeReader1.Barcodes).Value)\r\n    },\r\n\r\n    // 3. Check if found\r\n    If(IsBlank(LoytynytLaite),\r\n        // CASE: Not Found\r\n        Notify(\"Virhe: Laitetta ei löydy!\", NotificationType.Error);\r\n        Set(varScannedDevice, Blank()),\r\n    \r\n        // CASE: Found\r\n        Set(varScannedDevice, LoytynytLaite); \r\n\r\n        // 4. Determine Mode and Find Loan History\r\n        If(LoytynytLaite.Tila.Value = \"Lainassa\",\r\n            // Return Mode\r\n            Set(varMode, \"Palautus\");\r\n            // Find the specific open loan record\r\n            Set(varLastLoan, LookUp(Lainausloki, Title = LoytynytLaite.Title && IsBlank(PalautusPvm))),\r\n            \r\n            // Loan Mode\r\n            Set(varMode, \"Lainaus\")\r\n        );\r\n        \r\n        // 5. Move to next screen\r\n        Navigate(Screen_Tiedot, ScreenTransition.Fade)\r\n    )\r\n)"
+            ScanningMode: ="BarcodeReaderScanningMode.AutomaticallyScan"
+            Text: ="QR-Koodin Lukija"
+            Width: =335
+            X: =152
+            Y: =782
+      - Rectangle3_1:
+          Control: Rectangle@2.3.0
+          Properties:
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Fill: =RGBA(127, 178, 57, 1)
+            Height: =80
+            Width: =640
+      - Label1_1:
+          Control: Label@2.5.1
+          Properties:
+            Align: =Align.Center
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Color: =RGBA(255, 255, 255, 1)
+            Font: =Font.'Open Sans'
+            FontWeight: =FontWeight.Bold
+            Text: ="LAITTEEN LAINAUS"
+            Width: =468
+            X: =72
+            Y: =5
+      - Image2_1:
+          Control: Image@2.2.3
+          Properties:
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Height: =309
+            Image: ='Copy of eduks_tausta_valk_1080'
+            Width: =394
+            X: =123
+            Y: =278

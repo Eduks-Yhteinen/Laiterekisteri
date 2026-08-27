@@ -1,0 +1,106 @@
+.layout-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.main-content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 60px; /* Space for bottom nav on mobile */
+}
+
+/* Sidebar Navigation (Desktop) */
+.sidebar {
+  display: none;
+  width: 250px;
+  background-color: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  padding: var(--spacing-4);
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3);
+  color: var(--color-text-muted);
+  text-decoration: none;
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.nav-link:hover {
+  background-color: var(--color-bg);
+  color: var(--color-text-main);
+}
+
+.nav-link.active {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+/* Bottom Navigation (Mobile) */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--glass-border);
+  display: flex;
+  justify-content: space-around;
+  padding: var(--spacing-2) 0;
+  z-index: 1000;
+  padding-bottom: calc(var(--spacing-2) + env(safe-area-inset-bottom));
+}
+
+.bottom-nav .nav-link {
+  flex-direction: column;
+  gap: var(--spacing-1);
+  font-size: 0.75rem;
+  padding: var(--spacing-2);
+}
+
+/* Footer (GDPR Requirement) */
+.footer {
+  text-align: center;
+  padding: var(--spacing-4);
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  border-top: 1px solid var(--color-border);
+  margin-top: auto;
+}
+
+.footer a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.footer a:hover {
+  text-decoration: underline;
+}
+
+@media (min-width: 768px) {
+  .layout-container {
+    flex-direction: row;
+  }
+  
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+  }
+  
+  .bottom-nav {
+    display: none;
+  }
+  
+  .main-content-wrapper {
+    padding-bottom: 0;
+  }
+}

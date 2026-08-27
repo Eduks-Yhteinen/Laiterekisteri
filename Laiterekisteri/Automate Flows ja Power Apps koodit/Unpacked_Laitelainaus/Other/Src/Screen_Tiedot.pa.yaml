@@ -1,0 +1,182 @@
+# ************************************************************************************************
+# Warning: YAML source code for Canvas Apps should only be used to review changes made within Power Apps Studio and for minor edits (Preview).
+# Use the maker portal to create and edit your Power Apps.
+# 
+# The schema file for Canvas Apps is available at https://go.microsoft.com/fwlink/?linkid=2304907
+# 
+# For more information, visit https://go.microsoft.com/fwlink/?linkid=2292623
+# ************************************************************************************************
+Screens:
+  Screen_Tiedot:
+    Properties:
+      Fill: =RGBA(240, 240, 240, 0.01)
+      LoadingSpinnerColor: =RGBA(56, 96, 178, 1)
+    Children:
+      - Rectangle3:
+          Control: Rectangle@2.3.0
+          Properties:
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Fill: =RGBA(127, 178, 57, 1)
+            Height: =80
+            Width: =640
+      - Label1:
+          Control: Label@2.5.1
+          Properties:
+            Align: =Align.Center
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Color: =RGBA(255, 255, 255, 1)
+            Font: =Font.'Open Sans'
+            FontWeight: =FontWeight.Bold
+            Text: ="LAITTEEN LAINAUS"
+            Width: =468
+            X: =72
+            Y: =5
+      - Image2:
+          Control: Image@2.2.3
+          Properties:
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Height: =178
+            Image: ='Copy of eduks_tausta_valk_1080'
+            Width: =200
+            X: =440
+            Y: =55
+      - Icon1:
+          Control: Classic/Icon@2.5.0
+          Properties:
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Color: =RGBA(221, 79, 14, 1)
+            Height: =68
+            Icon: =Icon.CancelBadge
+            OnSelect: =Navigate((Screen_Aloitus), ScreenTransition.Fade)
+            Width: =91
+            X: =16
+            Y: =96
+      - Laitteen tiedot:
+          Control: GroupContainer@1.5.0
+          Variant: ManualLayout
+          Properties:
+            DropShadow: =DropShadow.Semibold
+            Height: =593
+            Width: =384
+            X: =128
+            Y: =233
+          Children:
+            - Nimi:
+                Control: Label@2.5.1
+                Properties:
+                  BorderColor: =RGBA(0, 18, 107, 1)
+                  Font: =Font.'Open Sans'
+                  Text: =varScannedDevice.Title
+                  Width: =293
+                  Y: =131
+            - Sarjanumero:
+                Control: Label@2.5.1
+                Properties:
+                  BorderColor: =RGBA(0, 18, 107, 1)
+                  Font: =Font.'Open Sans'
+                  Text: =varScannedDevice.Sarjanumero
+                  Width: =293
+                  Y: =201
+            - Tila:
+                Control: Label@2.5.1
+                Properties:
+                  BorderColor: =RGBA(0, 18, 107, 1)
+                  Fill: |-
+                    =If(
+                        IsBlank(varScannedDevice), 
+                        Color.Black,  // Oletusväri (musta), jos mitään ei ole skannattu
+                        If(
+                            varScannedDevice.Tila.Value = "Lainassa", 
+                            Color.Red,    // Punainen, jos lainassa
+                            Color.Green   // Vihreä, jos vapaa
+                        )
+                    )
+                  Font: =Font.'Open Sans'
+                  Text: =varScannedDevice.Tila.Value
+                  Width: =384
+                  Y: =413
+            - ComboBox_Lainaaja:
+                Control: Classic/ComboBox@2.4.0
+                Properties:
+                  BorderColor: =RGBA(0, 18, 107, 1)
+                  ChevronBackground: =RGBA(56, 96, 178, 1)
+                  ChevronFill: =RGBA(255, 255, 255, 1)
+                  ChevronHoverBackground: =ColorFade(RGBA(56, 96, 178, 1), -20%)
+                  ChevronHoverFill: =RGBA(255, 255, 255, 1)
+                  DisplayFields: =["DisplayName","Mail"]
+                  Font: =Font.'Open Sans'
+                  HoverFill: =RGBA(186, 202, 226, 1)
+                  Items: |-
+                    =Filter(
+                        Office365Users.SearchUser({
+                            searchTerm: Self.SearchText,
+                            top: 20
+                        }),
+                        EndsWith(Mail, "@lappeenranta.fi") || EndsWith(Mail, "@edu.lappeenranta.fi")
+                    )
+                  PressedColor: =RGBA(255, 255, 255, 1)
+                  PressedFill: =RGBA(0, 18, 107, 1)
+                  SearchFields: =["DisplayName"]
+                  SelectMultiple: =false
+                  SelectionColor: =RGBA(255, 255, 255, 1)
+                  SelectionFill: =RGBA(56, 96, 178, 1)
+                  Width: =384
+                  Y: =271
+            - dd_Location:
+                Control: Classic/DropDown@2.3.1
+                Properties:
+                  BorderColor: =RGBA(0, 18, 107, 1)
+                  ChevronBackground: =RGBA(56, 96, 178, 1)
+                  ChevronFill: =RGBA(255, 255, 255, 1)
+                  ChevronHoverBackground: =ColorFade(RGBA(56, 96, 178, 1), -20%)
+                  ChevronHoverFill: =RGBA(255, 255, 255, 1)
+                  Font: =Font.'Open Sans'
+                  HoverFill: =RGBA(186, 202, 226, 1)
+                  Items: =["Mediakeskus", "Varhaiskasvatuksen yhteiset", "Lauritsalan avoin pk ja leikkikerho", "Kesk. avoin pk", "Perhepäivähoito", "Kimpisen lukio", "Lyseon Lukio", "Joutsenon koulu", "Pulpin pk", "Korvenkylän koulu", "Pulpin koulu", "Keltun pk", "Myllymäen pk", "Myllymäen koulu", "Peltolan pk", "Kimpisen koulu", "Kasukkalan koulu", "Kaukaan koulu", "Kaukaan pk", "Kesämäen koulu", "Kesämäen pk", "Rakuunamäen pk", "Lavolan koulu", "Lönnrotin koulu", "Simolan koulu", "Ylämaan koulu", "Hovinpellin pk", "Pontuksen koulu", "Pontuksen pk", "Lauritsalan koulu", "Lauritsalan pk", "Nuijamaan koulu", "Kourulan pk", "Sammonlahden koulu", "Sammontalon pk", "Lappeen koulu", "Lappeen pk", "Saimaan koulu"]
+                  Items.Value: =Value
+                  PressedColor: =RGBA(255, 255, 255, 1)
+                  PressedFill: =RGBA(0, 18, 107, 1)
+                  SelectionColor: =RGBA(255, 255, 255, 1)
+                  SelectionFill: =RGBA(56, 96, 178, 1)
+                  Width: =384
+                  Y: =343
+      - Button2_1:
+          Control: Classic/Button@2.2.0
+          Properties:
+            BorderColor: =ColorFade(Self.Fill, -15%)
+            Color: =RGBA(255, 255, 255, 1)
+            DisabledBorderColor: =RGBA(166, 166, 166, 1)
+            Fill: =RGBA(246, 88, 16, 1)
+            Font: =Font.'Open Sans'
+            Height: =168
+            HoverBorderColor: =ColorFade(Self.BorderColor, 20%)
+            HoverColor: =RGBA(255, 255, 255, 1)
+            HoverFill: =ColorFade(RGBA(56, 96, 178, 1), -20%)
+            OnSelect: "=// Step 1: ERROR CHECK\r\n// If no device is scanned, just show error and stop (sort of).\r\nIf(IsBlank(varScannedDevice), \r\n    Notify(\"VIRHE: Ei laitetta muistissa!\", NotificationType.Error)\r\n);\r\n\r\n// Step 2: THE ACTION\r\n// Only run the return process if the device EXISTS (!IsBlank)\r\nIf(!IsBlank(varScannedDevice),\r\n    \r\n    // A. Run the Intune Flow (Check for serial number first)\r\n    If(IsBlank(varScannedDevice.Sarjanumero), \r\n        Notify(\"Virhe: Sarjanumero puuttuu, Intune-työnkulkua ei voi suorittaa!\", NotificationType.Error),\r\n        'Copyof-Intune_SetPrimaryUser'.Run(varScannedDevice.Sarjanumero)\r\n    );\r\n\r\n    // B. Update Device Status in SharePoint\r\n    Patch(Lainalaitteet, varScannedDevice, {\r\n        Tila: {Value: \"Vapaa\"},\r\n        Sijainti: Blank(),\r\n        Lainaaja: Blank()\r\n    });\r\n\r\n    // C. Update History Log in SharePoint\r\n    Patch(Lainausloki, varLastLoan, {\r\n        PalautusPvm: Now()\r\n    });\r\n\r\n    // D. Success Message and Navigate\r\n    Notify(\"Laite on palautettu onnistuneesti!\", NotificationType.Warning);\r\n    Navigate(Screen_Aloitus, ScreenTransition.Fade)\r\n);"
+            PressedBorderColor: =Self.Fill
+            PressedColor: =Self.Fill
+            PressedFill: =Self.Color
+            Text: ="Laitteen Palautus"
+            Width: =183
+            X: =374
+            Y: =909
+      - Button1:
+          Control: Classic/Button@2.2.0
+          Properties:
+            BorderColor: =ColorFade(Self.Fill, -15%)
+            Color: =RGBA(255, 255, 255, 1)
+            DisabledBorderColor: =RGBA(166, 166, 166, 1)
+            Fill: =RGBA(127, 178, 57, 1)
+            Font: =Font.'Open Sans'
+            Height: =168
+            HoverBorderColor: =ColorFade(Self.BorderColor, 20%)
+            HoverColor: =RGBA(255, 255, 255, 1)
+            HoverFill: =ColorFade(RGBA(56, 96, 178, 1), -20%)
+            OnSelect: "=// Step 1: ERROR CHECK (Check BOTH User and Location)\r\nIf(\r\n    IsBlank(ComboBox_Lainaaja.Selected) || IsBlank(dd_Location.Selected),\r\n    Notify(\"VIRHE: Valitse sekä lainaaja että sijainti!\", NotificationType.Error),\r\n\r\n    // Step 2: THE ACTION (Only runs if checks pass)\r\n    \r\n    // A. Run Intune Automation\r\n    // We get the EMAIL from the User Picker (ComboBox_Lainaaja)\r\n    'Intune_SetPrimaryUser'.Run(\r\n        varScannedDevice.Sarjanumero,    \r\n        ComboBox_Lainaaja.Selected.Mail  \r\n    );\r\n\r\n    // B. Update Device List\r\n    // We get the NAME from the User Picker\r\n    // We get the LOCATION from the new Dropdown (dd_Location)\r\n    Patch(Lainalaitteet, varScannedDevice, {\r\n        Tila: {Value: \"Lainassa\"},\r\n        Lainaaja: ComboBox_Lainaaja.Selected.DisplayName,\r\n        Sijainti: dd_Location.Selected.Value\r\n    });\r\n\r\n    // C. Update History Log\r\n    Patch(Lainausloki, Defaults(Lainausloki), {\r\n        Title: varScannedDevice.Title,\r\n        Lainaaja: ComboBox_Lainaaja.Selected.DisplayName,\r\n        Yksikkö: dd_Location.Selected.Value,\r\n        LainausPvm: Now()\r\n    });\r\n\r\n    // D. Finish\r\n    Notify(\"Lainaus tallennettu!\", NotificationType.Success);\r\n    Set(varMode, \"\");\r\n    UpdateContext({varLainaaja: \"\", varYksikko: \"\"});\r\n    Reset(ComboBox_Lainaaja);\r\n    Reset(dd_Location);\r\n    Navigate(Screen_Aloitus, ScreenTransition.Fade)\r\n)"
+            PressedBorderColor: =Self.Fill
+            PressedColor: =Self.Fill
+            PressedFill: =Self.Color
+            Text: ="Vahvista Lainaus"
+            Width: =183
+            X: =72
+            Y: =909

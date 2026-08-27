@@ -1,0 +1,208 @@
+Screen_Tiedot As screen:
+    Fill: =RGBA(240, 240, 240, 0.01)
+    LoadingSpinnerColor: =RGBA(56, 96, 178, 1)
+
+    Rectangle3 As rectangle:
+        Fill: =RGBA(127, 178, 57, 1)
+        Height: =80
+        Width: =640
+        ZIndex: =1
+
+    Label1 As label:
+        Align: =Align.Center
+        Color: =RGBA(255, 255, 255, 1)
+        FontWeight: =FontWeight.Bold
+        Height: =70
+        Size: =21
+        Text: ="LAITTEEN LAINAUS"
+        Width: =468
+        X: =72
+        Y: =5
+        ZIndex: =2
+
+    Image2 As image:
+        Height: =178
+        Image: ='Copy of eduks_tausta_valk_1080'
+        Width: =200
+        X: =440
+        Y: =55
+        ZIndex: =3
+
+    Icon1 As icon.CancelBadge:
+        Color: =RGBA(221, 79, 14, 1)
+        Height: =68
+        Icon: =Icon.CancelBadge
+        OnSelect: =Navigate((Screen_Aloitus), ScreenTransition.Fade)
+        Width: =91
+        X: =16
+        Y: =96
+        ZIndex: =4
+
+    "'Laitteen tiedot' As groupContainer.manualLayoutContainer":
+        DropShadow: =DropShadow.Semibold
+        Height: =593
+        LayoutGridColumnMinWidth: =0
+        LayoutGridColumns: =6
+        LayoutGridRowMinHeight: =0
+        LayoutGridRows: =6
+        Width: =384
+        X: =128
+        Y: =233
+        ZIndex: =5
+
+        Nimi As label:
+            Height: =70
+            Size: =21
+            Text: =varScannedDevice.Title
+            Width: =293
+            Y: =131
+            ZIndex: =1
+
+        Sarjanumero As label:
+            Height: =70
+            Size: =21
+            Text: =varScannedDevice.Sarjanumero
+            Width: =293
+            Y: =201
+            ZIndex: =2
+
+        Tila As label:
+            Fill: |-
+                =If(
+                    IsBlank(varScannedDevice), 
+                    Color.Black,  // Oletusväri (musta), jos mitään ei ole skannattu
+                    If(
+                        varScannedDevice.Tila.Value = "Lainassa", 
+                        Color.Red,    // Punainen, jos lainassa
+                        Color.Green   // Vihreä, jos vapaa
+                    )
+                )
+            Height: =70
+            Size: =21
+            Text: =varScannedDevice.Tila.Value
+            Width: =384
+            Y: =413
+            ZIndex: =3
+
+        ComboBox_Lainaaja As combobox:
+            DisplayFields: =["DisplayName","Mail"]
+            Height: =70
+            Items: |-
+                =Filter(
+                    Office365Users.SearchUser({
+                        searchTerm: Self.SearchText,
+                        top: 20
+                    }),
+                    EndsWith(Mail, "@lappeenranta.fi") || EndsWith(Mail, "@edu.lappeenranta.fi")
+                )
+            SearchFields: =["DisplayName"]
+            SearchItems: |-
+                =Search(Office365Users.SearchUser({searchTerm:Self.SearchText,top:10}),ComboBox_Lainaaja.SearchText,DisplayName)
+            SelectMultiple: =false
+            Size: =21
+            Template: =ListItemTemplate.Double
+            Width: =384
+            Y: =271
+            ZIndex: =5
+
+        dd_Location As dropdown:
+            Height: =70
+            Items: =["Mediakeskus", "Varhaiskasvatuksen yhteiset", "Lauritsalan avoin pk ja leikkikerho", "Kesk. avoin pk", "Perhepäivähoito", "Kimpisen lukio", "Lyseon Lukio", "Joutsenon koulu", "Pulpin pk", "Korvenkylän koulu", "Pulpin koulu", "Keltun pk", "Myllymäen pk", "Myllymäen koulu", "Peltolan pk", "Kimpisen koulu", "Kasukkalan koulu", "Kaukaan koulu", "Kaukaan pk", "Kesämäen koulu", "Kesämäen pk", "Rakuunamäen pk", "Lavolan koulu", "Lönnrotin koulu", "Simolan koulu", "Ylämaan koulu", "Hovinpellin pk", "Pontuksen koulu", "Pontuksen pk", "Lauritsalan koulu", "Lauritsalan pk", "Nuijamaan koulu", "Kourulan pk", "Sammonlahden koulu", "Sammontalon pk", "Lappeen koulu", "Lappeen pk", "Saimaan koulu"]
+            Size: =21
+            Width: =384
+            Y: =343
+            ZIndex: =6
+
+    Button2_1 As button:
+        Fill: =RGBA(246, 88, 16, 1)
+        Height: =168
+        OnSelect: |-
+            =// Step 1: ERROR CHECK
+            // If no device is scanned, just show error and stop (sort of).
+            If(IsBlank(varScannedDevice), 
+                Notify("VIRHE: Ei laitetta muistissa!", NotificationType.Error)
+            );
+            
+            // Step 2: THE ACTION
+            // Only run the return process if the device EXISTS (!IsBlank)
+            If(!IsBlank(varScannedDevice),
+                
+                // A. Run the Intune Flow (Check for serial number first)
+                If(IsBlank(varScannedDevice.Sarjanumero), 
+                    Notify("Virhe: Sarjanumero puuttuu, Intune-työnkulkua ei voi suorittaa!", NotificationType.Error),
+                    'Copyof-Intune_SetPrimaryUser'.Run(varScannedDevice.Sarjanumero)
+                );
+            
+                // B. Update Device Status in SharePoint
+                Patch(Lainalaitteet, varScannedDevice, {
+                    Tila: {Value: "Vapaa"},
+                    Sijainti: Blank(),
+                    Lainaaja: Blank()
+                });
+            
+                // C. Update History Log in SharePoint
+                Patch(Lainausloki, varLastLoan, {
+                    PalautusPvm: Now()
+                });
+            
+                // D. Success Message and Navigate
+                Notify("Laite on palautettu onnistuneesti!", NotificationType.Warning);
+                Navigate(Screen_Aloitus, ScreenTransition.Fade)
+            );
+        Size: =24
+        Text: ="Laitteen Palautus"
+        Width: =183
+        X: =374
+        Y: =909
+        ZIndex: =7
+
+    Button1 As button:
+        Fill: =RGBA(127, 178, 57, 1)
+        Height: =168
+        OnSelect: |-
+            =// Step 1: ERROR CHECK (Check BOTH User and Location)
+            If(
+                IsBlank(ComboBox_Lainaaja.Selected) || IsBlank(dd_Location.Selected),
+                Notify("VIRHE: Valitse sekä lainaaja että sijainti!", NotificationType.Error),
+            
+                // Step 2: THE ACTION (Only runs if checks pass)
+                
+                // A. Run Intune Automation
+                // We get the EMAIL from the User Picker (ComboBox_Lainaaja)
+                'Intune_SetPrimaryUser'.Run(
+                    varScannedDevice.Sarjanumero,    
+                    ComboBox_Lainaaja.Selected.Mail  
+                );
+            
+                // B. Update Device List
+                // We get the NAME from the User Picker
+                // We get the LOCATION from the new Dropdown (dd_Location)
+                Patch(Lainalaitteet, varScannedDevice, {
+                    Tila: {Value: "Lainassa"},
+                    Lainaaja: ComboBox_Lainaaja.Selected.DisplayName,
+                    Sijainti: dd_Location.Selected.Value
+                });
+            
+                // C. Update History Log
+                Patch(Lainausloki, Defaults(Lainausloki), {
+                    Title: varScannedDevice.Title,
+                    Lainaaja: ComboBox_Lainaaja.Selected.DisplayName,
+                    Yksikkö: dd_Location.Selected.Value,
+                    LainausPvm: Now()
+                });
+            
+                // D. Finish
+                Notify("Lainaus tallennettu!", NotificationType.Success);
+                Set(varMode, "");
+                UpdateContext({varLainaaja: "", varYksikko: ""});
+                Reset(ComboBox_Lainaaja);
+                Reset(dd_Location);
+                Navigate(Screen_Aloitus, ScreenTransition.Fade)
+            )
+        Size: =24
+        Text: ="Vahvista Lainaus"
+        Width: =183
+        X: =72
+        Y: =909
+        ZIndex: =8
+

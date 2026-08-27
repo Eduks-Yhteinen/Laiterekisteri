@@ -1,0 +1,14 @@
+App As appinfo:
+    BackEnabled: =true
+    OnStart: |-
+        =Set(varLainaaja, "");
+        Set(varYksikko, "");
+    Theme: =PowerAppsTheme
+
+    Host As hostControl.DefaultHostControlVariant:
+        OnCancel: =false
+        OnEdit: =false
+        OnNew: =false
+        OnSave: =false
+        OnView: =false
+

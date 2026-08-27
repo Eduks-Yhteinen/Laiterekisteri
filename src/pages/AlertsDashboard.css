@@ -1,0 +1,124 @@
+.alerts-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.page-title {
+  margin-bottom: var(--spacing-1);
+}
+
+.page-subtitle {
+  color: var(--color-text-muted);
+  margin-bottom: var(--spacing-4);
+}
+
+.alerts-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--spacing-4);
+}
+
+@media (min-width: 1024px) {
+  .alerts-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.alert-section {
+  padding: var(--spacing-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.alert-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--spacing-3);
+}
+
+.alert-header h2 {
+  font-size: 1.25rem;
+  margin: 0;
+  flex: 1;
+}
+
+.icon-warning {
+  color: var(--color-warning);
+}
+
+.icon-critical {
+  color: var(--color-critical);
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.warning-badge {
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+.critical-badge {
+  background-color: var(--color-critical-bg);
+  color: var(--color-critical);
+}
+
+.empty-state {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.device-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.device-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-2) var(--spacing-3);
+  background-color: var(--color-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.device-serial {
+  font-weight: 600;
+  flex: 1;
+}
+
+.device-detail {
+  color: var(--color-text-muted);
+  flex: 1;
+  text-align: center;
+  font-size: 0.875rem;
+}
+
+.device-date {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.875rem;
+  flex: 1;
+  text-align: right;
+}
+
+/* Custom border colors for the panels */
+.inactive-alert {
+  border-left: 4px solid var(--color-warning);
+}
+
+.aue-alert {
+  border-left: 4px solid var(--color-critical);
+}
