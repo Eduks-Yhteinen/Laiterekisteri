@@ -1,0 +1,19 @@
+{
+  "name": "antigravity-laiterekisteri",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "firebase": "^12.18.0"
+  },
+  "allowScripts": {
+    "@firebase/util@1.15.3": true
+  }
+}

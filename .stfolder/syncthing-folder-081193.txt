@@ -1,0 +1,5 @@
+# This directory is a Syncthing folder marker.
+# Do not delete.
+
+folderID: axaxn-icp2j
+created: 2026-08-24T14:56:00+03:00

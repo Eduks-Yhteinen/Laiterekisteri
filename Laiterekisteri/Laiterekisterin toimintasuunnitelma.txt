@@ -1,0 +1,35 @@
+Laiterekisterin toimintasuunnitelma
+
+Lähtötilanne
+
+Nykyinen järjestelmä on toteutettu prototyyppinä hyödyntäen Power Appsa, Power Automatea sekä SharePointia. Sen tarkoituksena on hallinnoida Lappeenrannan kaupungin EDU-laiterekisteriä.
+
+Power Apps – Laiteskanneri
+Sovellus tarjoaa nopean käyttöliittymän laitteiden hallintaan ja keskeisten tietojen tarkasteluun (esim. hankinta-aika, käyttäjä ja vuokrasopimuksen päättymispäivä).
+
+Taustalla toimii Power Automate -työnkulku, joka käy läpi kolme .json-muotoista listaa (Master_****.json). Työnkulku hakee oikean laitteen tiedot QR-koodin tai käsin syötetyn hakuehdon perusteella ja esittää ne käyttäjälle.
+
+Power Automate -työnkulut
+Automaattiset taustaprosessit hyödyntävät rajapintoja Microsoft Intuneen ja Google Adminiin. Ne hakevat määritellyt tiedot, tallentavat ne .json-tiedostoon ja synkronoivat tiedot SharePointiin.
+
+SharePoint
+Toimii tietojen keskitettynä tallennuspaikkana ja tietokantana.
+
+
+Seuraavat vaiheet – Tuotekehitys
+Laaditaan selkeä toimintasuunnitelma ja määritellään kehitystyön vaiheet:
+
+Kootaan kaikki nykyisen demon tiedot ja materiaalit (ReadMe.txt, Master_***.json, Power Automate -työnkulut ja Power Apps -sovellus).
+Määritellään vaiheittainen toteutussuunnitelma sekä selkeä kansiorakenne Gemini-tekoälyä hyödyntäen.
+Rakennetaan uusi tietokanta Google Firebase -ympäristöön (Console/Studio).
+Varmistetaan tietoturva ja pääsynhallinta (käyttöoikeudet, kirjautumisen tunnistautuminen ja monivaiheinen todennus / MFA).
+Toteutetaan tietojen hajautus/piilotus sekä automaattinen yhdistäminen eri tietokannoista (esim. henkilötiedot erillisinä tiedostoina).
+Luodaan uudet automaatiot Antigravity-alustalla hyödyntäen Power Automaten ja Power Appsin nykyisiä määrityksiä.
+Järjestetään säännölliset tilannekatsaukset kehityksen etenemisestä.
+
+
+
+Tilannekatsaus – 24.8.2026
+Luotu definition.json-tiedostot ja -kansiot jokaisesta Power Automate -työnkulusta.
+Luotu vastaavat konfiguraatiotiedostot Power Apps -sovelluksista.
+Kaikki työnkulkujen ja Power Appsin definition.json-tiedostot on tallennettu väliaikaisesti Google Driveen.
