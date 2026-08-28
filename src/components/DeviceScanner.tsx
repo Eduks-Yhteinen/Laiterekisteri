@@ -102,18 +102,18 @@ export function DeviceScanner({ isOpen, onClose, onScanSuccess }: DeviceScannerP
 
       await html5QrCode.current.start(
         configToUse,
-          {
-            fps: 10,
-            experimentalFeatures: {
-              useBarCodeDetectorIfSupported: true
-            },
-            formatsToSupport: [
-              Html5QrcodeSupportedFormats.QR_CODE,
-              Html5QrcodeSupportedFormats.DATA_MATRIX,
-              Html5QrcodeSupportedFormats.CODE_128,
-              Html5QrcodeSupportedFormats.CODE_39
-            ]
+        {
+          fps: 10,
+          experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true
           },
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.QR_CODE,
+            Html5QrcodeSupportedFormats.DATA_MATRIX,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39
+          ]
+        } as any,
         (decodedText) => {
           // Validation on success
           const result = serialNumberSchema.safeParse(decodedText);

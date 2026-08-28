@@ -77,7 +77,7 @@ export function DeviceScanner() {
             Html5QrcodeSupportedFormats.CODE_128,
             Html5QrcodeSupportedFormats.CODE_39
           ]
-        },
+        } as any,
         async (decodedText) => {
           // Stop scanning once we get a result
           await stopScanner();
