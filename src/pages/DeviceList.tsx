@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { collection, getDocs, query, limit, startAfter, QueryDocumentSnapshot, where } from 'firebase/firestore';
 import { Search } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
+import { Camera } from 'lucide-react';
 import { db } from '../firebase';
+import { DeviceScanner } from '../components/DeviceScanner';
 import type { Device } from '../types';
 import './DeviceList.css';
 
@@ -21,6 +23,7 @@ export function DeviceList() {
   const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   useEffect(() => {
     const fetchDevices = async () => {
@@ -110,6 +113,10 @@ export function DeviceList() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="search-input"
           />
+          <button className="scan-button-desktop" onClick={() => setIsScannerOpen(true)} title="Skannaa viivakoodi">
+            <Camera size={20} />
+            <span>Skannaa</span>
+          </button>
         </div>
       </div>
 
@@ -159,7 +166,18 @@ export function DeviceList() {
               ))}
               {filteredDevices.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="text-center p-4">Ei tuloksia valitulla välilehdellä.</td>
+                  <td colSpan={6} className="text-center p-4">
+                    {searchTerm ? (
+                      <div className="empty-state">
+                        <p>Laitetta <strong>{searchTerm}</strong> ei löytynyt.</p>
+                        <button className="btn btn-primary" style={{ marginTop: '1rem' }} onClick={() => alert('Uuden laitteen lisäys tulossa (arvo: ' + searchTerm + ')')}>
+                          + Lisää uusi laite numerolla {searchTerm}
+                        </button>
+                      </div>
+                    ) : (
+                      <span>Ei tuloksia valitulla välilehdellä.</span>
+                    )}
+                  </td>
                 </tr>
               )}
               {hasMore && searchTerm === '' && (
@@ -180,6 +198,17 @@ export function DeviceList() {
           </table>
         </div>
       )}
+      
+      {/* Mobile Floating Action Button */}
+      <button className="fab-scan-button" onClick={() => setIsScannerOpen(true)} aria-label="Skannaa laite">
+        <Camera size={24} />
+      </button>
+
+      <DeviceScanner 
+        isOpen={isScannerOpen} 
+        onClose={() => setIsScannerOpen(false)} 
+        onScanSuccess={(code) => setSearchTerm(code)} 
+      />
     </div>
   );
 }

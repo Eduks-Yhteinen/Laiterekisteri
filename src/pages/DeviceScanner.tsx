@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Html5QrcodeScanner, Html5QrcodeScanType } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { Camera, CheckCircle, XCircle } from 'lucide-react';
+import { Camera, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import { db } from '../firebase';
 import type { Device } from '../types';
 import { DeviceSchema } from '../schemas';
@@ -12,43 +12,92 @@ export function DeviceScanner() {
   const [deviceData, setDeviceData] = useState<Device | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const [cameras, setCameras] = useState<any[]>([]);
+  const [currentCameraId, setCurrentCameraId] = useState<string | null>(null);
+
+  const html5QrCode = useRef<Html5Qrcode | null>(null);
+  const isScanning = useRef<boolean>(false);
 
   useEffect(() => {
-    // Initialize scanner
-    const scanner = new Html5QrcodeScanner(
-      "reader",
-      { 
-        fps: 10, 
-        qrbox: { width: 250, height: 250 },
-        supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
-      },
-      false
-    );
-    scannerRef.current = scanner;
-
-    scanner.render(onScanSuccess, onScanFailure);
-
+    startScanner();
     return () => {
-      // Cleanup on unmount
-      if (scannerRef.current) {
-        scannerRef.current.clear().catch(console.error);
-      }
+      stopScanner().catch(console.error);
     };
   }, []);
 
-  const onScanSuccess = async (decodedText: string) => {
-    // Stop scanning once we get a result
-    if (scannerRef.current) {
-      scannerRef.current.clear();
+  const stopScanner = async () => {
+    if (html5QrCode.current && isScanning.current) {
+      try {
+        await html5QrCode.current.stop();
+        isScanning.current = false;
+        html5QrCode.current.clear();
+      } catch (err) {
+        console.error("Failed to stop scanner", err);
+      }
     }
-    
-    setScanResult(decodedText);
-    await processScannedSerial(decodedText);
   };
 
-  const onScanFailure = (_error: any) => {
-    // Ignore frequent scan failures (e.g. no barcode found in frame)
+  const startScanner = async (cameraId?: string) => {
+    setError(null);
+    try {
+      if (!html5QrCode.current) {
+        html5QrCode.current = new Html5Qrcode("reader");
+      } else if (isScanning.current) {
+        await stopScanner();
+      }
+      
+      let configToUse: any = cameraId;
+      if (!cameraId) {
+        try {
+          const devices = await Html5Qrcode.getCameras();
+          if (devices && devices.length > 0) {
+            setCameras(devices);
+            const backCam = devices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('taka'));
+            configToUse = backCam ? backCam.id : devices[0].id;
+          } else {
+            configToUse = { facingMode: "environment" };
+          }
+        } catch (camErr) {
+          configToUse = { facingMode: "environment" };
+        }
+      }
+
+      setCurrentCameraId(typeof configToUse === 'string' ? configToUse : null);
+
+      await html5QrCode.current.start(
+        configToUse,
+        {
+          fps: 10,
+          experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true
+          },
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.QR_CODE,
+            Html5QrcodeSupportedFormats.DATA_MATRIX,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39
+          ]
+        },
+        async (decodedText) => {
+          // Stop scanning once we get a result
+          await stopScanner();
+          setScanResult(decodedText.trim());
+          await processScannedSerial(decodedText.trim());
+        },
+        () => {}
+      );
+      isScanning.current = true;
+    } catch (err: unknown) {
+      console.error(err);
+      setError("Kameran käynnistys epäonnistui. Varmista, että olet antanut selaimelle luvan käyttää kameraa.");
+    }
+  };
+
+  const toggleCamera = async () => {
+    if (cameras.length <= 1 || !currentCameraId) return;
+    const currentIndex = cameras.findIndex(c => c.id === currentCameraId);
+    const nextIndex = (currentIndex + 1) % cameras.length;
+    await startScanner(cameras[nextIndex].id);
   };
 
   const processScannedSerial = async (serial: string) => {
@@ -57,15 +106,22 @@ export function DeviceScanner() {
     setDeviceData(null);
 
     try {
-      // 1. Fetch from Firestore
       const docRef = doc(db, 'devices', serial);
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
         const rawData = docSnap.data();
-        // 2. Validate with Zod
-        const parsedData = DeviceSchema.parse(rawData);
-        setDeviceData(parsedData as Device);
+        try {
+          const parsedData = DeviceSchema.parse(rawData);
+          setDeviceData(parsedData as Device);
+        } catch (validationErr: any) {
+          console.error("Validation error:", validationErr);
+          if (validationErr.errors) {
+            setError(`Data puuttuu tai on viallista: ${validationErr.errors.map((e: any) => e.path.join('.') + ' ' + e.message).join(', ')}`);
+          } else {
+            throw validationErr;
+          }
+        }
       } else {
         setError(`Laitetta sarjanumerolla ${serial} ei löytynyt järjestelmästä.`);
       }
@@ -83,9 +139,7 @@ export function DeviceScanner() {
     try {
       const docRef = doc(db, 'devices', deviceData.Serial);
       const now = new Date().toISOString();
-      await updateDoc(docRef, {
-        LastCheckIn: now
-      });
+      await updateDoc(docRef, { LastCheckIn: now });
       setDeviceData({ ...deviceData, LastCheckIn: now });
       alert('Inventaario (LastCheckIn) päivitetty onnistuneesti!');
     } catch (err: any) {
@@ -100,11 +154,7 @@ export function DeviceScanner() {
     setScanResult(null);
     setDeviceData(null);
     setError(null);
-    
-    // Reinitialize scanner
-    if (scannerRef.current) {
-      scannerRef.current.render(onScanSuccess, onScanFailure);
-    }
+    startScanner();
   };
 
   return (
@@ -113,7 +163,33 @@ export function DeviceScanner() {
       <p className="page-subtitle">Skannaa laitteen viivakoodi/QR-koodi inventointia varten.</p>
 
       <div className="scanner-container glass-panel">
-        <div id="reader" className={scanResult ? 'hidden' : ''}></div>
+        <div className={`scanner-viewport ${scanResult ? 'hidden' : ''}`} style={{position: 'relative'}}>
+          <div id="reader"></div>
+          {!scanResult && cameras.length > 1 && (
+            <button 
+              className="camera-toggle-btn" 
+              onClick={toggleCamera}
+              style={{
+                position: 'absolute', 
+                bottom: '10px', 
+                left: '50%', 
+                transform: 'translateX(-50%)',
+                zIndex: 10,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                background: 'rgba(0,0,0,0.6)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '20px'
+              }}
+            >
+              <RefreshCw size={20} />
+              Vaihda kameraa
+            </button>
+          )}
+        </div>
         
         {scanResult && (
           <div className="scan-result-panel">
@@ -139,17 +215,24 @@ export function DeviceScanner() {
                 <div className="detail-grid">
                   <div className="detail-item">
                     <span className="detail-label">Malli</span>
-                    <span className="detail-value">{deviceData.Model}</span>
+                    <span className="detail-value">{deviceData.Model || 'Ei tiedossa'}</span>
                   </div>
                   <div className="detail-item">
                     <span className="detail-label">Tila</span>
-                    <span className={`status-badge ${deviceData.provisionStatus.toLowerCase()}`}>
-                      {deviceData.provisionStatus}
+                    <span className={`status-badge ${deviceData.DeviceStatus?.toLowerCase() || 'unknown'}`}>
+                      {deviceData.DeviceStatus || 'Ei tiedossa'}
                     </span>
                   </div>
                   <div className="detail-item">
                     <span className="detail-label">Edellinen inventointi</span>
-                    <span className="detail-value">{deviceData.LastCheckIn.split('T')[0]}</span>
+                    <span className="detail-value">
+                      {deviceData.LastCheckIn 
+                        ? (() => {
+                            const parts = deviceData.LastCheckIn.split('T')[0].split('-');
+                            return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : deviceData.LastCheckIn;
+                          })()
+                        : 'Ei inventoitu'}
+                    </span>
                   </div>
                 </div>
 
