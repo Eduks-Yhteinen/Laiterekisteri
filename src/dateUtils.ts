@@ -1,4 +1,4 @@
-export const formatDate = (dateString?: string) => {
+export const formatDate = (dateString?: string | null) => {
   if (!dateString) return '-';
   const parts = dateString.split('T')[0].split('-');
   if (parts.length !== 3) return dateString;

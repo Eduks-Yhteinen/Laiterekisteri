@@ -117,12 +117,12 @@ export function AlertsDashboard() {
                   onClick={onPieClick}
                   style={{ cursor: 'pointer' }}
                 >
-                  {deviceCounts.map((entry, index) => (
+                  {deviceCounts.map((_, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip 
-                   formatter={(value: number, name: string) => [`${value} kpl`, name]}
+                   formatter={(value: any, name: any) => [`${value} kpl`, name]}
                    contentStyle={{ borderRadius: '8px', background: 'rgba(255, 255, 255, 0.9)', color: '#333' }}
                    itemStyle={{ color: '#333' }}
                 />
