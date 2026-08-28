@@ -122,3 +122,6 @@
 .aue-alert {
   border-left: 4px solid var(--color-critical);
 }
+
+.chart-alert { border-left: 4px solid var(--color-primary); } 
+.icon-info { color: var(--color-primary); }

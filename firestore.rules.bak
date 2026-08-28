@@ -1,0 +1,58 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 1. Verify it is a valid school Google account
+    function isSchoolUser() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'google.com'
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.matches('.*@edu\\.lappeenranta\\.fi$');
+    }
+
+    // 2. Global Admins (Pasi and Joni)
+    function isGlobalAdmin() {
+      return request.auth.token.email == 'pasi.hulkkonen@edu.lappeenranta.fi' 
+          || request.auth.token.email == 'joni.hikipaa@edu.lappeenranta.fi';
+    }
+
+    // 3. Look up 'Admin' status safely (Seppo Security Fix)
+    function isAdmin() {
+      let roleDoc = /databases/$(database)/documents/user_roles/$(request.auth.uid);
+      return exists(roleDoc) && get(roleDoc).data.role == 'admin';
+    }
+
+    // ---------------------------------------------------
+    // PERMISSIONS
+    // ---------------------------------------------------
+
+    // The 'user_roles' collection (Seppo Security Fix: Users only read their own)
+    match /user_roles/{userId} {
+      allow read: if isSchoolUser() && (request.auth.uid == userId || isGlobalAdmin());
+      allow write: if isSchoolUser() && isGlobalAdmin();
+    }
+
+    // PII Data (Only Global Admins & Admins can read/write)
+    match /device_pii/{serial} {
+      allow read, write: if isSchoolUser() && (isGlobalAdmin() || isAdmin());
+    }
+
+    // Public Device Data
+    match /devices/{serial} {
+      allow read: if isSchoolUser();
+      
+      // Seppo Security Fix: Admins can ONLY update scan status fields
+      allow update: if isSchoolUser() && isAdmin() 
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['LastCheckIn', 'DeviceStatus']);
+      
+      allow write: if isSchoolUser() && isGlobalAdmin();
+    }
+
+    // ALL other database documents
+    match /{document=**} {
+      allow read: if isSchoolUser();
+      // ONLY Global Admins get write access to everything else
+      allow write: if isSchoolUser() && isGlobalAdmin();
+    }
+  }
+}

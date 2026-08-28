@@ -1,27 +1,49 @@
 import { useEffect, useState } from 'react';
-import { collection, getDocs, query, limit, QueryDocumentSnapshot } from 'firebase/firestore';
+import { collection, getDocs, query, limit, startAfter, QueryDocumentSnapshot, where } from 'firebase/firestore';
 import { Search } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { db } from '../firebase';
 import type { Device } from '../types';
 import './DeviceList.css';
 
+import { formatDate } from '../dateUtils';
+
+const TABS = ['Kaikki', 'Windows', 'Apple', 'Android', 'Chromebook'];
+
 export function DeviceList() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('type') || 'Kaikki';
+
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const fetchDevices = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        // Fetch up to 100 devices initially
-        const q = query(collection(db, 'devices'), limit(100));
+        let q;
+        if (activeTab === 'Kaikki') {
+          q = query(collection(db, 'devices'), limit(100));
+        } else {
+          q = query(collection(db, 'devices'), where('DeviceType', '==', activeTab), limit(100));
+        }
+
         const querySnapshot = await getDocs(q);
         const fetched: Device[] = [];
         querySnapshot.forEach((doc: QueryDocumentSnapshot) => {
           fetched.push(doc.data() as Device);
         });
         setDevices(fetched);
+        
+        const lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
+        setLastVisible(lastDoc || null);
+        setHasMore(querySnapshot.docs.length === 100);
       } catch (err: any) {
         console.error('Error fetching devices:', err);
         setError(err.message || 'Error fetching data');
@@ -31,7 +53,44 @@ export function DeviceList() {
     };
 
     fetchDevices();
-  }, []);
+  }, [activeTab]); // Re-run when activeTab changes
+
+  const loadMore = async () => {
+    if (!lastVisible) return;
+    setLoadingMore(true);
+    try {
+      let q;
+      if (activeTab === 'Kaikki') {
+        q = query(collection(db, 'devices'), startAfter(lastVisible), limit(100));
+      } else {
+        q = query(collection(db, 'devices'), where('DeviceType', '==', activeTab), startAfter(lastVisible), limit(100));
+      }
+
+      const querySnapshot = await getDocs(q);
+      const fetched: Device[] = [];
+      querySnapshot.forEach((doc: QueryDocumentSnapshot) => {
+        fetched.push(doc.data() as Device);
+      });
+      setDevices(prev => [...prev, ...fetched]);
+      
+      const lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
+      setLastVisible(lastDoc || null);
+      setHasMore(querySnapshot.docs.length === 100);
+    } catch (err: any) {
+      console.error('Error fetching more devices:', err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const handleTabChange = (tab: string) => {
+    if (tab === 'Kaikki') {
+      searchParams.delete('type');
+    } else {
+      searchParams.set('type', tab);
+    }
+    setSearchParams(searchParams);
+  };
 
   const filteredDevices = devices.filter(d => 
     d.Serial.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -54,6 +113,18 @@ export function DeviceList() {
         </div>
       </div>
 
+      <div className="tabs-container">
+        {TABS.map(tab => (
+          <button
+            key={tab}
+            className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
+            onClick={() => handleTabChange(tab)}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
       {loading ? (
         <div className="p-4">Ladataan laitteita...</div>
       ) : error ? (
@@ -63,11 +134,12 @@ export function DeviceList() {
           <table className="device-table">
             <thead>
               <tr>
-                <th>Serial</th>
+                <th>Sarjanumero</th>
                 <th>Malli</th>
+                <th>Laitetyyppi</th>
                 <th>Tila</th>
-                <th>Vrt.</th>
-                <th>AUE</th>
+                <th>Viim. nähty</th>
+                <th>Takuu / AUE</th>
               </tr>
             </thead>
             <tbody>
@@ -75,18 +147,33 @@ export function DeviceList() {
                 <tr key={d.Serial}>
                   <td className="font-semibold">{d.Serial}</td>
                   <td>{d.Model}</td>
+                  <td>{d.DeviceType || '-'}</td>
                   <td>
-                    <span className={`status-badge ${d.provisionStatus.toLowerCase()}`}>
-                      {d.provisionStatus}
+                    <span className={`status-badge ${d.DeviceStatus?.toLowerCase() || 'unknown'}`}>
+                      {d.DeviceStatus}
                     </span>
                   </td>
-                  <td>{d.LastCheckIn?.split('T')[0]}</td>
-                  <td>{d.AutoUpdateExpiration?.split('T')[0] || '-'}</td>
+                  <td>{formatDate(d.LastCheckIn)}</td>
+                  <td>{formatDate(d.AutoUpdateExpiration || d.LeaseEnd)}</td>
                 </tr>
               ))}
               {filteredDevices.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="text-center p-4">Ei tuloksia.</td>
+                  <td colSpan={6} className="text-center p-4">Ei tuloksia valitulla välilehdellä.</td>
+                </tr>
+              )}
+              {hasMore && searchTerm === '' && (
+                <tr>
+                  <td colSpan={6} className="text-center p-4">
+                    <button 
+                      onClick={loadMore} 
+                      disabled={loadingMore} 
+                      className="btn-secondary" 
+                      style={{ padding: '0.5rem 2rem', marginTop: '1rem' }}
+                    >
+                      {loadingMore ? 'Ladataan...' : 'Näytä lisää laitteita'}
+                    </button>
+                  </td>
                 </tr>
               )}
             </tbody>
