@@ -37,6 +37,9 @@ export function DeviceScanner() {
     }
   };
 
+  // * startScanner vastaa fyysisen kameran käynnistämisestä.
+  // ! HUOM: Selain estää kameran käytön, jos sivusto ei käytä HTTPS-yhteyttä
+  // (paitsi localhostissa, mutta sielläkin Vite-konffi käyttää @vitejs/plugin-basic-ssl:ää varmuuden vuoksi).
   const startScanner = async (cameraId?: string) => {
     setError(null);
     try {
@@ -47,6 +50,8 @@ export function DeviceScanner() {
       }
       
       let configToUse: any = cameraId;
+      // * Jos kameraID:tä ei annettu (ensimmäinen käynnistys), yritetään etsiä laitteen takakamera.
+      // Takakamerassa on usein automaattitarkennus, mikä on viivakoodeille välttämätön.
       if (!cameraId) {
         try {
           const devices = await Html5Qrcode.getCameras();
@@ -55,6 +60,7 @@ export function DeviceScanner() {
             const backCam = devices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('taka'));
             configToUse = backCam ? backCam.id : devices[0].id;
           } else {
+            // ? Fallback: Jos getCameras() ei palauta mitään, pyydetään ympäristökameraa sokeasti.
             configToUse = { facingMode: "environment" };
           }
         } catch (camErr) {

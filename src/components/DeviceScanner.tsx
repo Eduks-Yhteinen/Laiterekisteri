@@ -179,7 +179,12 @@ export function DeviceScanner({ isOpen, onClose, onScanSuccess }: DeviceScannerP
               </div>
               <button 
                 className="btn btn-primary btn-large grant-btn" 
-                onClick={() => startScanner()}
+                onClick={() => {
+                  setHasPermission(true);
+                  setTimeout(() => {
+                    startScanner();
+                  }, 100);
+                }}
               >
                 <Camera size={20} /> Anna lupa ja avaa kamera
               </button>

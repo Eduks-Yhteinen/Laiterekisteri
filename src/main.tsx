@@ -3,6 +3,9 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 
+// * ErrorBoundary ottaa kiinni koko sovelluksen laajuiset JavaScript-virheet.
+// Sen sijaan, että näyttö jäisi täysin valkoiseksi kaatumisen yhteydessä, 
+// tämä luokka piirtää ruudulle punaisen virheilmoituksen.
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean, error: Error | null }> {
   constructor(props: { children: ReactNode }) {
     super(props);
@@ -27,7 +30,11 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boole
   }
 }
 
+// * Reactin juurikomponentti piirretään DOMiin (index.html:n root-elementtiin)
 createRoot(document.getElementById('root')!).render(
+  // ! StrictMode ajaa komponentit kehitysympäristössä KAHDESTI!
+  // Tämä auttaa löytämään mahdollisia virheitä (kuten muistivuotoja useEffecteissä).
+  // Se ei koske tuotantoversiota.
   <StrictMode>
     <ErrorBoundary>
       <App />

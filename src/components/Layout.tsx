@@ -11,7 +11,7 @@ const navItems = [
 export function Layout() {
   return (
     <div className="layout-container">
-      {/* Desktop Sidebar */}
+      {/* * Pöytäkoneluokan sivupalkki (Desktop Sidebar) */}
       <aside className="sidebar">
         <div style={{ padding: '0 1rem 2rem' }}>
           <h2>EDU Laiterekisteri</h2>
@@ -32,10 +32,13 @@ export function Layout() {
 
       <div className="main-content-wrapper">
         <main className="main-content">
+          {/* * <Outlet /> on React Routerin erikoiskomponentti.
+              Tähän kohtaan "ruiskutetaan" se sivu (esim. DeviceList tai DeviceScanner),
+              jossa käyttäjä parhaillaan on. Näin sivu vaihtuu, mutta ympäröivä Layout pysyy. */}
           <Outlet />
         </main>
         
-        {/* Footer with GDPR Privacy Link */}
+        {/* * Tietosuojalinkki alatunnisteessa on tärkeä GDPR-vaatimus. */}
         <footer className="footer">
           Lappeenranta EDU &copy; {new Date().getFullYear()} |{' '}
           <a href="https://www.lappeenranta.fi/fi/tietosuoja" target="_blank" rel="noopener noreferrer">
@@ -44,7 +47,8 @@ export function Layout() {
         </footer>
       </div>
 
-      {/* Mobile Bottom Navigation */}
+      {/* * Mobiililaitteiden alanavigaatio. 
+          CSS piilottaa tämän pöytäkoneilla ja näyttää vain pienillä näytöillä. */}
       <nav className="bottom-nav">
         {navItems.map((item) => (
           <NavLink 

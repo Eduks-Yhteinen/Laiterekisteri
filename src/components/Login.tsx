@@ -8,10 +8,19 @@ export function Login() {
 
   const handleLogin = async () => {
     try {
+      // * Google Auth Provider mahdollistaa kirjautumisen Google-tilillä.
       const provider = new GoogleAuthProvider();
+      
+      // * Hint the domain: Tämä ohjaa Googlen kirjautumisikkunan ehdottamaan 
+      // vain edu.lappeenranta.fi -tilejä.
+      // ! HUOM: Tämä EI estä muiden tilien käyttöä lopullisesti (se on vain UI-vihje).
+      // Varsinainen domain-rajoitus on tehtävä Firebasen Authentication -asetuksissa (Cloud Console)
+      // tai firestore.rules -tiedostossa (esim. `request.auth.token.email.matches('.*@edu.lappeenranta.fi')`).
       provider.setCustomParameters({
-        hd: 'edu.lappeenranta.fi' // Hint the domain
+        hd: 'edu.lappeenranta.fi'
       });
+      
+      // * Avataan ponnahdusikkuna (Popup) kirjautumista varten.
       await signInWithPopup(auth, provider);
     } catch (err: any) {
       console.error(err);

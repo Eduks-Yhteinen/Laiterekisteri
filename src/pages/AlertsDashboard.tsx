@@ -38,7 +38,10 @@ export function AlertsDashboard() {
   useEffect(() => {
     const fetchAlerts = async () => {
       try {
-        // Fetch Pie Chart Counts (Super fast and cheap using getCountFromServer)
+        // * 1. Piirakkakaavion datan haku (Tyyppien lukumäärät)
+        // ! OPTIMOINTI: Emme hae itse dokumentteja, vaan käytämme getCountFromServer -metodia.
+        // Se on satoja kertoja nopeampi ja maksaa vähemmän Firebase-lukuja (reads).
+        // 1000 dokumentin laskeminen maksaa vain 1 lukukerran (1 read).
         const types = ['Windows', 'Apple', 'Android', 'Chromebook'];
         const countsData = await Promise.all(types.map(async (type) => {
           const q = query(
@@ -50,10 +53,12 @@ export function AlertsDashboard() {
           return { name: type, value: snap.data().count };
         }));
         
-        setDeviceCounts(countsData.filter(d => d.value > 0)); // Only show non-zero
+        setDeviceCounts(countsData.filter(d => d.value > 0)); // Näytetään vain ne joissa on laitteita
 
-        // Note: For now, we fetch up to 300 devices to find alerts so we don't blow up the read quota
-        // In a real production app, we would use Firebase Functions or composite indexes for this
+        // * 2. Hälytysten datan haku
+        // ? POHDINTA: Tuotannossa hälytykset (esim. yli 30pv inaktiiviset) kannattaa 
+        // ehkä laskea Cloud Functionin avulla kerran yössä erilliseen dokumenttiin.
+        // Tässä haemme 500 uusinta laitetta ja suodatamme selaimessa, mikä ei skaalaudu satoihin tuhansiin.
         const q = query(collection(db, 'devices'), where('DeviceStatus', '==', 'Käytössä'), limit(500));
         const querySnapshot = await getDocs(q);
         const devices: Device[] = [];
@@ -61,6 +66,7 @@ export function AlertsDashboard() {
           devices.push(doc.data() as Device);
         });
 
+        // Etsitään laitteet, joita ei ole näkynyt yli 30 päivään
         const inactive = devices.filter(d => isOlderThan30Days(d.LastCheckIn)).slice(0, 50);
         
         const expiring = devices.filter(d => {

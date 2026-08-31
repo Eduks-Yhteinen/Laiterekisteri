@@ -25,12 +25,21 @@ export function DeviceList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
 
+  // * Tämä efekti hakee laitteet tietokannasta heti, kun komponentti ladataan
+  // tai kun välilehti (activeTab) vaihtuu.
   useEffect(() => {
     const fetchDevices = async () => {
       setLoading(true);
       setError(null);
       try {
         let q;
+        // ! TIETOSUOJA (Privacy by Design)
+        // Kuten huomaat, haemme tässä Vain 'devices' -kokoelmaa.
+        // Emme koskaan hae 'device_pii' -kokoelmaa tähän yleiseen listaan,
+        // jotta emme turhaan siirrä henkilötietoja selaimeen.
+        
+        // * Rajoitetaan kerralla haettava määrä sataan (limit 100),
+        // jotta selain ei jumiudu, jos laitteita on kymmeniä tuhansia (Paginointi).
         if (activeTab === 'Kaikki') {
           q = query(collection(db, 'devices'), limit(100));
         } else {
@@ -44,6 +53,7 @@ export function DeviceList() {
         });
         setDevices(fetched);
         
+        // * Otetaan talteen viimeinen dokumentti paginointia (Lataa lisää -nappia) varten
         const lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
         setLastVisible(lastDoc || null);
         setHasMore(querySnapshot.docs.length === 100);
@@ -56,7 +66,7 @@ export function DeviceList() {
     };
 
     fetchDevices();
-  }, [activeTab]); // Re-run when activeTab changes
+  }, [activeTab]); // Re-run kun activeTab muuttuu
 
   const loadMore = async () => {
     if (!lastVisible) return;
