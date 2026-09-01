@@ -57,6 +57,8 @@
   padding: var(--spacing-3) var(--spacing-4);
   border-bottom: 1px solid var(--color-border);
   font-size: 0.875rem;
+  vertical-align: middle;
+  white-space: nowrap;
 }
 
 .device-table th {
@@ -65,8 +67,14 @@
   color: var(--color-text-muted);
 }
 
+.device-table tr {
+  transition: all 0.2s ease;
+}
+
 .device-table tr:hover {
-  background-color: rgba(0,0,0,0.01);
+  background-color: var(--color-bg);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
 }
 
 .status-badge {
@@ -77,13 +85,18 @@
 }
 
 .status-badge.active {
-  background-color: var(--color-success);
-  color: white;
+  background-color: var(--color-success-soft, #e6f4ea);
+  color: var(--color-success-text, #137333);
 }
 
 .status-badge.inactive, .status-badge.deprovisioned {
-  background-color: var(--color-text-muted);
-  color: white;
+  background-color: var(--color-warning-soft, #fef7e0);
+  color: var(--color-warning-text, #b06000);
+}
+
+.status-badge.unknown {
+  background-color: var(--color-border);
+  color: var(--color-text-main);
 }
 
 .tabs-container { display: flex; gap: var(--spacing-2); margin-bottom: var(--spacing-4); flex-wrap: wrap; } 
@@ -154,6 +167,51 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 2rem;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+  color: var(--color-text-muted);
 }
 
+.empty-state p {
+  margin-bottom: var(--spacing-4);
+  font-size: 1.125rem;
+}
+
+@media (max-width: 768px) {
+  .device-table, .device-table tbody, .device-table tr, .device-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .device-table thead {
+    display: none;
+  }
+
+  .device-table tr {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: var(--spacing-4);
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-3);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .device-table td {
+    border: none;
+    padding: var(--spacing-1) 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .device-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+  }
+}

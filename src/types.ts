@@ -14,6 +14,9 @@ export interface Device {
   DeviceStatus: DeviceStatus;
   LeaseEnd: string | null;
   LeaseType: string;
+  // Optional PII fields, only populated if user has Admin rights
+  DeviceName?: string;
+  PrimaryUser?: string;
 }
 
 export interface DevicePII {

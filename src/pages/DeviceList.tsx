@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { collection, getDocs, query, limit, startAfter, QueryDocumentSnapshot, where } from 'firebase/firestore';
-import { Search } from 'lucide-react';
+import { Search, Camera, Laptop, Smartphone, HelpCircle } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
-import { Camera } from 'lucide-react';
 import { db } from '../firebase';
 import { DeviceScanner } from '../components/DeviceScanner';
-import type { Device } from '../types';
+import { useAuth } from '../hooks/useAuth';
+import type { Device, DevicePII } from '../types';
 import './DeviceList.css';
 
 import { formatDate } from '../dateUtils';
@@ -15,6 +15,7 @@ const TABS = ['Kaikki', 'Windows', 'Apple', 'Android', 'Chromebook'];
 export function DeviceList() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('type') || 'Kaikki';
+  const { role } = useAuth();
 
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +52,43 @@ export function DeviceList() {
         querySnapshot.forEach((doc: QueryDocumentSnapshot) => {
           fetched.push(doc.data() as Device);
         });
+
+        // * RBAC: Fetch PII data only if user is Admin or Global Admin
+        if ((role === 'Admin' || role === 'Global Admin') && fetched.length > 0) {
+          try {
+            // Firestore 'in' query supports up to 30 elements, but we have up to 100.
+            // Best approach for the frontend is to split into chunks of 30.
+            const chunks: string[][] = [];
+            for (let i = 0; i < fetched.length; i += 30) {
+              chunks.push(fetched.slice(i, i + 30).map(d => d.Serial));
+            }
+            
+            const piiPromises = chunks.map(chunk => 
+              getDocs(query(collection(db, 'device_pii'), where('Serial', 'in', chunk)))
+            );
+            
+            const piiSnapshots = await Promise.all(piiPromises);
+            const piiMap = new Map<string, DevicePII>();
+            
+            piiSnapshots.forEach(snap => {
+              snap.forEach(doc => {
+                const data = doc.data() as DevicePII;
+                piiMap.set(data.Serial, data);
+              });
+            });
+            
+            fetched.forEach(device => {
+              const pii = piiMap.get(device.Serial);
+              if (pii) {
+                device.DeviceName = pii.DeviceName;
+                device.PrimaryUser = pii.PrimaryUser;
+              }
+            });
+          } catch (piiErr) {
+            console.error('Failed to fetch PII data:', piiErr);
+          }
+        }
+
         setDevices(fetched);
         
         // * Otetaan talteen viimeinen dokumentti paginointia (Lataa lisää -nappia) varten
@@ -84,6 +122,41 @@ export function DeviceList() {
       querySnapshot.forEach((doc: QueryDocumentSnapshot) => {
         fetched.push(doc.data() as Device);
       });
+
+      // * RBAC for loadMore
+      if ((role === 'Admin' || role === 'Global Admin') && fetched.length > 0) {
+        try {
+          const chunks: string[][] = [];
+          for (let i = 0; i < fetched.length; i += 30) {
+            chunks.push(fetched.slice(i, i + 30).map(d => d.Serial));
+          }
+          
+          const piiPromises = chunks.map(chunk => 
+            getDocs(query(collection(db, 'device_pii'), where('Serial', 'in', chunk)))
+          );
+          
+          const piiSnapshots = await Promise.all(piiPromises);
+          const piiMap = new Map<string, DevicePII>();
+          
+          piiSnapshots.forEach(snap => {
+            snap.forEach(doc => {
+              const data = doc.data() as DevicePII;
+              piiMap.set(data.Serial, data);
+            });
+          });
+          
+          fetched.forEach(device => {
+            const pii = piiMap.get(device.Serial);
+            if (pii) {
+              device.DeviceName = pii.DeviceName;
+              device.PrimaryUser = pii.PrimaryUser;
+            }
+          });
+        } catch (piiErr) {
+          console.error('Failed to fetch PII data:', piiErr);
+        }
+      }
+
       setDevices(prev => [...prev, ...fetched]);
       
       const lastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
@@ -109,6 +182,38 @@ export function DeviceList() {
     d.Serial.toLowerCase().includes(searchTerm.toLowerCase()) || 
     d.Model.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const getDeviceIcon = (type: string | undefined) => {
+    switch (type?.toLowerCase()) {
+      case 'windows':
+      case 'apple':
+      case 'chromebook':
+        return <Laptop size={16} className="text-gray-500 mr-2" style={{ marginRight: '6px' }} />;
+      case 'android':
+        return <Smartphone size={16} className="text-gray-500 mr-2" style={{ marginRight: '6px' }} />;
+      default:
+        return <HelpCircle size={16} className="text-gray-500 mr-2" style={{ marginRight: '6px' }} />;
+    }
+  };
+
+  const renderSkeletonRows = () => {
+    return Array.from({ length: 5 }).map((_, i) => (
+      <tr key={i}>
+        <td data-label="Sarjanumero"><div className="skeleton" style={{ height: '20px', width: '120px' }}></div></td>
+        <td data-label="Malli"><div className="skeleton" style={{ height: '20px', width: '150px' }}></div></td>
+        {(role === 'Admin' || role === 'Global Admin') && (
+          <>
+            <td data-label="Nimi"><div className="skeleton" style={{ height: '20px', width: '100px' }}></div></td>
+            <td data-label="Käyttäjä"><div className="skeleton" style={{ height: '20px', width: '120px' }}></div></td>
+          </>
+        )}
+        <td data-label="Laitetyyppi"><div className="skeleton" style={{ height: '20px', width: '100px' }}></div></td>
+        <td data-label="Tila"><div className="skeleton" style={{ height: '24px', width: '60px', borderRadius: '12px' }}></div></td>
+        <td data-label="Viim. nähty"><div className="skeleton" style={{ height: '20px', width: '90px' }}></div></td>
+        <td data-label="Takuu / AUE"><div className="skeleton" style={{ height: '20px', width: '90px' }}></div></td>
+      </tr>
+    ));
+  };
 
   return (
     <div className="device-list-page">
@@ -142,9 +247,7 @@ export function DeviceList() {
         ))}
       </div>
 
-      {loading ? (
-        <div className="p-4">Ladataan laitteita...</div>
-      ) : error ? (
+      {error ? (
         <div className="p-4 text-red-500">Virhe: {error}</div>
       ) : (
         <div className="table-container glass-panel">
@@ -153,6 +256,12 @@ export function DeviceList() {
               <tr>
                 <th>Sarjanumero</th>
                 <th>Malli</th>
+                {(role === 'Admin' || role === 'Global Admin') && (
+                  <>
+                    <th>Nimi</th>
+                    <th>Käyttäjä</th>
+                  </>
+                )}
                 <th>Laitetyyppi</th>
                 <th>Tila</th>
                 <th>Viim. nähty</th>
@@ -160,23 +269,34 @@ export function DeviceList() {
               </tr>
             </thead>
             <tbody>
-              {filteredDevices.map(d => (
+              {loading ? renderSkeletonRows() : filteredDevices.map(d => (
                 <tr key={d.Serial}>
-                  <td className="font-semibold">{d.Serial}</td>
-                  <td>{d.Model}</td>
-                  <td>{d.DeviceType || '-'}</td>
-                  <td>
+                  <td data-label="Sarjanumero" className="font-semibold font-mono">{d.Serial}</td>
+                  <td data-label="Malli">{d.Model}</td>
+                  {(role === 'Admin' || role === 'Global Admin') && (
+                    <>
+                      <td data-label="Nimi">{d.DeviceName || '-'}</td>
+                      <td data-label="Käyttäjä">{d.PrimaryUser || '-'}</td>
+                    </>
+                  )}
+                  <td data-label="Laitetyyppi">
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      {getDeviceIcon(d.DeviceType)}
+                      {d.DeviceType || '-'}
+                    </div>
+                  </td>
+                  <td data-label="Tila">
                     <span className={`status-badge ${d.DeviceStatus?.toLowerCase() || 'unknown'}`}>
                       {d.DeviceStatus}
                     </span>
                   </td>
-                  <td>{formatDate(d.LastCheckIn)}</td>
-                  <td>{formatDate(d.AutoUpdateExpiration || d.LeaseEnd)}</td>
+                  <td data-label="Viim. nähty">{formatDate(d.LastCheckIn)}</td>
+                  <td data-label="Takuu / AUE">{formatDate(d.AutoUpdateExpiration || d.LeaseEnd)}</td>
                 </tr>
               ))}
-              {filteredDevices.length === 0 && (
+              {!loading && filteredDevices.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="text-center p-4">
+                  <td colSpan={role === 'Admin' || role === 'Global Admin' ? 8 : 6} className="text-center p-4">
                     {searchTerm ? (
                       <div className="empty-state">
                         <p>Laitetta <strong>{searchTerm}</strong> ei löytynyt.</p>
@@ -192,7 +312,7 @@ export function DeviceList() {
               )}
               {hasMore && searchTerm === '' && (
                 <tr>
-                  <td colSpan={6} className="text-center p-4">
+                  <td colSpan={role === 'Admin' || role === 'Global Admin' ? 8 : 6} className="text-center p-4">
                     <button 
                       onClick={loadMore} 
                       disabled={loadingMore} 
