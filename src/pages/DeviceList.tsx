@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { collection, getDocs, query, limit, startAfter, QueryDocumentSnapshot, where } from 'firebase/firestore';
-import { Search, Camera, Laptop, Smartphone, HelpCircle } from 'lucide-react';
+import { Search, Camera, Laptop, Smartphone, HelpCircle, Edit } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { db } from '../firebase';
 import { DeviceScanner } from '../components/DeviceScanner';
+import { DeviceEditModal } from '../components/DeviceEditModal';
 import { useAuth } from '../hooks/useAuth';
 import type { Device, DevicePII } from '../types';
 import './DeviceList.css';
@@ -25,6 +26,7 @@ export function DeviceList() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [editingDevice, setEditingDevice] = useState<Device | null>(null);
 
   // * Tämä efekti hakee laitteet tietokannasta heti, kun komponentti ladataan
   // tai kun välilehti (activeTab) vaihtuu.
@@ -210,7 +212,7 @@ export function DeviceList() {
         <td data-label="Laitetyyppi"><div className="skeleton" style={{ height: '20px', width: '100px' }}></div></td>
         <td data-label="Tila"><div className="skeleton" style={{ height: '24px', width: '60px', borderRadius: '12px' }}></div></td>
         <td data-label="Viim. nähty"><div className="skeleton" style={{ height: '20px', width: '90px' }}></div></td>
-        <td data-label="Takuu / AUE"><div className="skeleton" style={{ height: '20px', width: '90px' }}></div></td>
+        <td data-label="Vuokranpäättyminen / AUE"><div className="skeleton" style={{ height: '20px', width: '90px' }}></div></td>
       </tr>
     ));
   };
@@ -265,7 +267,8 @@ export function DeviceList() {
                 <th>Laitetyyppi</th>
                 <th>Tila</th>
                 <th>Viim. nähty</th>
-                <th>Takuu / AUE</th>
+                <th>Vuokranpäättyminen / AUE</th>
+                {(role === 'Admin' || role === 'Global Admin') && <th>Toiminnot</th>}
               </tr>
             </thead>
             <tbody>
@@ -291,12 +294,27 @@ export function DeviceList() {
                     </span>
                   </td>
                   <td data-label="Viim. nähty">{formatDate(d.LastCheckIn)}</td>
-                  <td data-label="Takuu / AUE">{formatDate(d.AutoUpdateExpiration || d.LeaseEnd)}</td>
+                  <td data-label="Vuokranpäättyminen / AUE">{formatDate(d.AutoUpdateExpiration || d.LeaseEnd)}</td>
+                  {(role === 'Admin' || role === 'Global Admin') && (
+                    <td data-label="Toiminnot">
+                      {d.DeviceType === 'Windows' && (
+                        <button 
+                          className="btn-secondary" 
+                          style={{ padding: '0.25rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                          onClick={() => setEditingDevice(d)}
+                          title="Muokkaa laitetta"
+                        >
+                          <Edit size={16} />
+                          Muokkaa
+                        </button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
               {!loading && filteredDevices.length === 0 && (
                 <tr>
-                  <td colSpan={role === 'Admin' || role === 'Global Admin' ? 8 : 6} className="text-center p-4">
+                  <td colSpan={role === 'Admin' || role === 'Global Admin' ? 9 : 6} className="text-center p-4">
                     {searchTerm ? (
                       <div className="empty-state">
                         <p>Laitetta <strong>{searchTerm}</strong> ei löytynyt.</p>
@@ -312,7 +330,7 @@ export function DeviceList() {
               )}
               {hasMore && searchTerm === '' && (
                 <tr>
-                  <td colSpan={role === 'Admin' || role === 'Global Admin' ? 8 : 6} className="text-center p-4">
+                  <td colSpan={role === 'Admin' || role === 'Global Admin' ? 9 : 6} className="text-center p-4">
                     <button 
                       onClick={loadMore} 
                       disabled={loadingMore} 
@@ -339,6 +357,17 @@ export function DeviceList() {
         onClose={() => setIsScannerOpen(false)} 
         onScanSuccess={(code) => setSearchTerm(code)} 
       />
+
+      {editingDevice && (
+        <DeviceEditModal
+          device={editingDevice}
+          isOpen={true}
+          onClose={() => setEditingDevice(null)}
+          onSaveSuccess={(updated) => {
+            setDevices(prev => prev.map(d => d.Serial === updated.Serial ? updated : d));
+          }}
+        />
+      )}
     </div>
   );
 }

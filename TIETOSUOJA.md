@@ -12,3 +12,21 @@ Sovellus sisältää ominaisuuden, jonka avulla laitteiden sarjanumeroita voidaa
 3. **Tietojen tallennus:** Videovirrasta ei oteta kuvakaappauksia, eikä kuvadataa tallenneta laitteen muistiin tai selaimen välimuistiin. Vain tekstimuotoinen lopputulos (dekoodattu sarjanumero) välitetään sovelluksen tilaan.
 
 Nämä toimenpiteet on suunniteltu varmistamaan, että kenttätyöntekijöiden ympäristöstä tai henkilöistä ei vahingossakaan kerätä tunnistettavaa kuvatietoa.
+
+## Henkilötietojen (PII) käsittely ja Roolipohjainen pääsy (RBAC)
+
+Sovellus käsittelee laitteisiin liittyviä henkilötietoja, kuten ensisijaisen käyttäjän nimeä (`Käyttäjä`) ja laitteen yksilöllistä nimeä (`Nimi`), erittäin tiukasti.
+
+### Tietosuojaperiaatteet henkilötietojen osalta:
+1. **Roolipohjainen näkyvyys:** Henkilötietoja (PII) näytetään käyttöliittymässä ainoastaan erikseen valtuutetuille ylläpitäjille (`Global Admin` ja `Admin`). Tavalliset käyttäjät (esim. opettajat) näkevät laitteista vain ei-yksilöivät tiedot, kuten sarjanumeron, mallin ja tilan.
+2. **Tietokantatason eristys:** Henkilöön yhdistettävät tiedot on eristetty tietokannassa omaan kokoelmaansa (`device_pii`), jotta vahingossa tapahtuvia tietovuotoja ei pääse syntymään yleisen laitedatan (`devices`) lukemisen yhteydessä.
+3. **Minimointi:** Tietokannasta haetaan asiakaslaitteelle (selaimeen) kerrallaan vain sen verran henkilötietoja kuin on ehdottoman välttämätöntä, ja vain silloin kun käyttäjän rooli sen sallii.
+
+## Tietojen siirto kolmansiin osapuoliin (Microsoft Intune)
+
+Laiterekisteri mahdollistaa laitteiden vastuuhenkilöiden (esim. `PrimaryUser` eli sähköpostiosoite) päivittämisen suoraan käyttöliittymästä.
+
+### Tietosuojaperiaatteet integraatiossa:
+1. **Rajoitettu muokkausoikeus:** Vain ylläpitäjäroolilla (Admin / Global Admin) toimivat henkilöt voivat tehdä muutoksia henkilötietoihin, jotka välitetään eteenpäin Microsoft Intuneen.
+2. **Suojattu tiedonsiirto:** Tietojen päivitys selaimesta Intuneen tapahtuu aina turvallisen taustapalvelun (Firebase Cloud Functions) kautta. Suorat API-kutsut selaimesta Microsoftin palvelimiin on estetty, jotta tietojen siirto voidaan monitoroida ja varmentaa Laiterekisterin omien roolisääntöjen mukaisesti.
+3. **Auditointi ja yhdenmukaisuus:** Taustapalvelu varmistaa automaattisesti, että jos henkilötietoa (käyttäjä) muutetaan Intunessa Laiterekisterin kautta, sama muutos tallentuu välittömästi myös Laiterekisterin suojattuun `device_pii`-kokoelmaan. Tämä takaa tiedon eheyden ja sen, että laitteen todellinen omistajuus on aina läpinäkyvästi todennettavissa.

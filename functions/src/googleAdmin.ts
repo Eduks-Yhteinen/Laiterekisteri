@@ -17,7 +17,7 @@ async function getGoogleAuthClient(clientId: string, clientSecret: string, refre
 
 export const syncGoogleChrome = functions.scheduler.onSchedule(
   {
-    schedule: "every saturday 02:00",
+    schedule: "every 1 hours",
     secrets: [GOOGLE_ADMIN_CLIENT_ID, GOOGLE_ADMIN_CLIENT_SECRET, GOOGLE_ADMIN_REFRESH_TOKEN],
   },
   async (event) => {
@@ -33,6 +33,7 @@ export const syncGoogleChrome = functions.scheduler.onSchedule(
 
     const authClient = await getGoogleAuthClient(clientId, clientSecret, refreshToken);
     const db = admin.firestore();
+    const syncedSerials = new Set<string>();
 
     let pageToken = "";
     
@@ -51,6 +52,8 @@ export const syncGoogleChrome = functions.scheduler.onSchedule(
 
         for (const device of devices) {
           if (!device.serialNumber) continue;
+          
+          syncedSerials.add(device.serialNumber);
 
           // Data Minimization
           const publicData: FirestoreDevice = {
@@ -82,6 +85,34 @@ export const syncGoogleChrome = functions.scheduler.onSchedule(
 
         pageToken = data.nextPageToken || "";
       } while (pageToken);
+
+      // --- Ghost Device Cleanup ---
+      if (syncedSerials.size > 0) {
+        console.log(`Successfully synced ${syncedSerials.size} ChromeOS devices from Google Admin.`);
+        
+        // Fetch all local ChromeOS devices
+        const localChromeDevicesSnapshot = await db.collection("devices")
+          .where("DeviceType", "==", "ChromeOS")
+          .get();
+        
+        const deleteBatch = db.batch();
+        let deleteCount = 0;
+
+        for (const doc of localChromeDevicesSnapshot.docs) {
+          const serial = doc.id;
+          if (!syncedSerials.has(serial)) {
+            // Device exists locally but not in Google Admin -> Delete ghost device
+            deleteBatch.delete(doc.ref);
+            deleteBatch.delete(db.collection("device_pii").doc(serial));
+            deleteCount++;
+          }
+        }
+
+        if (deleteCount > 0) {
+          await deleteBatch.commit();
+          console.log(`Deleted ${deleteCount} ghost ChromeOS devices.`);
+        }
+      }
 
       console.log("Google Admin sync completed successfully.");
     } catch (error) {
