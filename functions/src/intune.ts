@@ -35,9 +35,9 @@ async function getGraphToken(clientId: string, clientSecret: string, tenantId: s
 }
 
 // * How does this work? (Scheduled Sync)
-// This is a cron job that runs every hour on Firebase. It pulls all Windows devices from Intune
+// This is a cron job that runs every hour on Firebase. It pulls all devices from Intune
 // and synchronizes them into our local Firestore database (`devices` and `device_pii` collections).
-export const syncIntuneWindows = functions.scheduler.onSchedule(
+export const syncIntuneDevices = functions.scheduler.onSchedule(
   {
     schedule: "every 1 hours",
     secrets: [INTUNE_CLIENT_ID, INTUNE_CLIENT_SECRET],
@@ -59,7 +59,7 @@ export const syncIntuneWindows = functions.scheduler.onSchedule(
     }
 
     const db = admin.firestore();
-    let url = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?$filter=operatingSystem eq 'Windows'";
+    let url = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices";
     const syncedSerials = new Set<string>();
 
     try {
@@ -87,13 +87,24 @@ export const syncIntuneWindows = functions.scheduler.onSchedule(
 
           syncedSerials.add(device.serialNumber);
 
+          // Dynamically map Intune OS to our DeviceType categories
+          let mappedDeviceType = "Unknown";
+          const os = (device.operatingSystem || "").toLowerCase();
+          if (os.includes("windows")) {
+            mappedDeviceType = "Windows";
+          } else if (os.includes("android")) {
+            mappedDeviceType = "Android";
+          } else if (os.includes("ios") || os.includes("ipados") || os.includes("macos")) {
+            mappedDeviceType = "Apple";
+          }
+
           // Data Minimization
           const publicData: FirestoreDevice = {
             Serial: device.serialNumber,
             DeviceID: device.id,
             Model: device.model || "Unknown",
             LastCheckIn: device.lastSyncDateTime,
-            DeviceType: "Windows",
+            DeviceType: mappedDeviceType,
             provisionStatus: "ACTIVE"
           };
 
@@ -123,21 +134,21 @@ export const syncIntuneWindows = functions.scheduler.onSchedule(
 
       // * How does this work? (Ghost Device Cleanup)
       // "Ghost devices" are devices that exist in our local Firestore but have been deleted or unenrolled from Intune.
-      // After successfully fetching ALL current Windows devices from Intune (tracked in `syncedSerials`),
-      // we query our local database for all Windows devices. If a local device is NOT in the `syncedSerials` set,
+      // After successfully fetching ALL current devices from Intune (tracked in `syncedSerials`),
+      // we query our local database for all devices managed by Intune. If a local device is NOT in the `syncedSerials` set,
       // we know it was removed from Intune, so we delete it from both `devices` and `device_pii` collections to keep data clean.
       if (syncedSerials.size > 0) {
-        console.log(`Successfully synced ${syncedSerials.size} Windows devices from Intune.`);
+        console.log(`Successfully synced ${syncedSerials.size} devices from Intune.`);
 
-        // Fetch all local Windows devices
-        const localWindowsDevicesSnapshot = await db.collection("devices")
-          .where("DeviceType", "==", "Windows")
+        // Fetch all local devices that are managed by Intune
+        const localIntuneDevicesSnapshot = await db.collection("devices")
+          .where("DeviceType", "in", ["Windows", "Apple", "Android", "Unknown"])
           .get();
 
         const deleteBatch = db.batch();
         let deleteCount = 0;
 
-        for (const doc of localWindowsDevicesSnapshot.docs) {
+        for (const doc of localIntuneDevicesSnapshot.docs) {
           const serial = doc.id;
           if (!syncedSerials.has(serial)) {
             // Device exists locally but not in Intune -> Delete ghost device
@@ -149,7 +160,7 @@ export const syncIntuneWindows = functions.scheduler.onSchedule(
 
         if (deleteCount > 0) {
           await deleteBatch.commit();
-          console.log(`Deleted ${deleteCount} ghost Windows devices.`);
+          console.log(`Deleted ${deleteCount} ghost Intune devices.`);
         }
       }
 
