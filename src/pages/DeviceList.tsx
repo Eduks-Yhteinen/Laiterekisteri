@@ -188,7 +188,8 @@ export function DeviceList() {
 
   const filteredDevices = devices.filter(d => 
     d.Serial.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    d.Model.toLowerCase().includes(searchTerm.toLowerCase())
+    d.Model.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (d.DeviceName && d.DeviceName.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   // * Palvelinpuolen haku: Jos paikallinen suodatus ei tuota tuloksia ja hakusana on riittävän pitkä,
@@ -208,11 +209,36 @@ export function DeviceList() {
           const qUpper = query(collection(db, 'devices'), where('Serial', '>=', term.toUpperCase()), where('Serial', '<=', term.toUpperCase() + '\uf8ff'), limit(5));
           const qExact = query(collection(db, 'devices'), where('Serial', '>=', term), where('Serial', '<=', term + '\uf8ff'), limit(5));
           
-          const [snapUpper, snapExact] = await Promise.all([getDocs(qUpper), getDocs(qExact)]);
+          const promises = [getDocs(qUpper), getDocs(qExact)];
+          
+          if (role === 'Admin' || role === 'Global Admin') {
+            const qNameUpper = query(collection(db, 'device_pii'), where('DeviceName', '>=', term.toUpperCase()), where('DeviceName', '<=', term.toUpperCase() + '\uf8ff'), limit(5));
+            const qNameExact = query(collection(db, 'device_pii'), where('DeviceName', '>=', term), where('DeviceName', '<=', term + '\uf8ff'), limit(5));
+            promises.push(getDocs(qNameUpper), getDocs(qNameExact));
+          }
+          
+          const results = await Promise.all(promises);
+          const snapUpper = results[0];
+          const snapExact = results[1];
+          const piiSnapUpper = results[2];
+          const piiSnapExact = results[3];
           
           const fetchedMap = new Map<string, Device>();
           snapUpper.forEach(doc => fetchedMap.set(doc.id, doc.data() as Device));
           snapExact.forEach(doc => fetchedMap.set(doc.id, doc.data() as Device));
+          
+          const piiSerials = new Set<string>();
+          if (piiSnapUpper) piiSnapUpper.forEach(doc => piiSerials.add(doc.data().Serial));
+          if (piiSnapExact) piiSnapExact.forEach(doc => piiSerials.add(doc.data().Serial));
+          
+          if (piiSerials.size > 0) {
+            const serials = Array.from(piiSerials).filter(s => !fetchedMap.has(s));
+            if (serials.length > 0) {
+              const qDevicesBySerial = query(collection(db, 'devices'), where('Serial', 'in', serials));
+              const snapDevices = await getDocs(qDevicesBySerial);
+              snapDevices.forEach(doc => fetchedMap.set(doc.id, doc.data() as Device));
+            }
+          }
           
           const fetched = Array.from(fetchedMap.values());
 
