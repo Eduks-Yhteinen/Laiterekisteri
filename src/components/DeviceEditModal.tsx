@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { X, Save, AlertCircle } from 'lucide-react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import type { Device } from '../types';
+import { UserAutocomplete, type UserAutocompleteRef } from './UserAutocomplete';
 import './DeviceEditModal.css';
 
 interface DeviceEditModalProps {
@@ -16,6 +17,7 @@ export function DeviceEditModal({ device, isOpen, onClose, onSaveSuccess }: Devi
   const [primaryUser, setPrimaryUser] = useState(device.PrimaryUser || '');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const autocompleteRef = React.useRef<UserAutocompleteRef>(null);
 
   if (!isOpen) return null;
 
@@ -84,18 +86,21 @@ export function DeviceEditModal({ device, isOpen, onClose, onSaveSuccess }: Devi
 
           <div className="form-group">
             <label>Käyttäjä (Sähköposti)</label>
-            <input 
-              type="email" 
+            <UserAutocomplete 
+              ref={autocompleteRef}
               value={primaryUser} 
-              onChange={e => setPrimaryUser(e.target.value)} 
-              disabled={isSaving}
-              placeholder="Esim. matti.meikalainen@edu.lappeenranta.fi"
+              onChange={setPrimaryUser} 
+              disabled={isSaving} 
             />
+            <span className="help-text">Etsi käyttäjää nimellä tai sähköpostilla</span>
           </div>
         </div>
 
         <div className="modal-footer">
           <button className="btn-secondary" onClick={onClose} disabled={isSaving}>Peruuta</button>
+          <button className="btn-secondary" onClick={() => autocompleteRef.current?.search()} disabled={isSaving || primaryUser.trim().length < 3}>
+            Etsi
+          </button>
           <button className="btn-primary flex items-center gap-2" onClick={handleSave} disabled={isSaving}>
             <Save size={18} />
             {isSaving ? 'Tallennetaan...' : 'Tallenna'}

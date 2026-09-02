@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { collection, getDocs, query, limit, startAfter, QueryDocumentSnapshot, where } from 'firebase/firestore';
 import { Search, Camera, Laptop, Smartphone, HelpCircle, Edit } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
@@ -27,6 +27,9 @@ export function DeviceList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
+  
+  const [serverSearchLoading, setServerSearchLoading] = useState(false);
+  const searchedTermsRef = useRef<Set<string>>(new Set());
 
   // * Tämä efekti hakee laitteet tietokannasta heti, kun komponentti ladataan
   // tai kun välilehti (activeTab) vaihtuu.
@@ -55,11 +58,14 @@ export function DeviceList() {
           fetched.push(doc.data() as Device);
         });
 
-        // * RBAC: Fetch PII data only if user is Admin or Global Admin
+        // * How does this work? (RBAC & PII Fetching)
+        // If the user has an Admin role, we fetch the PII (Personal Identifiable Information) data.
+        // We do this separately from the main device query to ensure Basic Users never even download this data.
         if ((role === 'Admin' || role === 'Global Admin') && fetched.length > 0) {
           try {
-            // Firestore 'in' query supports up to 30 elements, but we have up to 100.
-            // Best approach for the frontend is to split into chunks of 30.
+            // * How does this work? (Firestore 'in' Query Chunking)
+            // Firestore 'in' query supports up to 30 elements, but we have up to 100 devices per page.
+            // We split the requested serial numbers into chunks of 30, run parallel queries, and then combine the results.
             const chunks: string[][] = [];
             for (let i = 0; i < fetched.length; i += 30) {
               chunks.push(fetched.slice(i, i + 30).map(d => d.Serial));
@@ -106,7 +112,7 @@ export function DeviceList() {
     };
 
     fetchDevices();
-  }, [activeTab]); // Re-run kun activeTab muuttuu
+  }, [activeTab, role]); // Re-run kun activeTab muuttuu
 
   const loadMore = async () => {
     if (!lastVisible) return;
@@ -184,6 +190,68 @@ export function DeviceList() {
     d.Serial.toLowerCase().includes(searchTerm.toLowerCase()) || 
     d.Model.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // * Palvelinpuolen haku: Jos paikallinen suodatus ei tuota tuloksia ja hakusana on riittävän pitkä,
+  // yritetään hakea tietokannasta (esim. skannerin syöttämä sarjanumero, jota ei oltu vielä ladattu)
+  useEffect(() => {
+    const term = searchTerm.trim();
+    if (term.length >= 3 && filteredDevices.length === 0 && !loading && !searchedTermsRef.current.has(term.toLowerCase())) {
+      const searchServer = async () => {
+        setServerSearchLoading(true);
+        searchedTermsRef.current.add(term.toLowerCase()); // Estetään saman haun toistuminen
+        
+        try {
+          // * How does this work? (Firestore Prefix Search)
+          // We perform a prefix search by querying for strings between `term` and `term + '\uf8ff'`.
+          // `\uf8ff` is a very high code point in Unicode, effectively matching any string that starts with `term`.
+          // We query for both uppercase and original case since Firestore queries are case-sensitive.
+          const qUpper = query(collection(db, 'devices'), where('Serial', '>=', term.toUpperCase()), where('Serial', '<=', term.toUpperCase() + '\uf8ff'), limit(5));
+          const qExact = query(collection(db, 'devices'), where('Serial', '>=', term), where('Serial', '<=', term + '\uf8ff'), limit(5));
+          
+          const [snapUpper, snapExact] = await Promise.all([getDocs(qUpper), getDocs(qExact)]);
+          
+          const fetchedMap = new Map<string, Device>();
+          snapUpper.forEach(doc => fetchedMap.set(doc.id, doc.data() as Device));
+          snapExact.forEach(doc => fetchedMap.set(doc.id, doc.data() as Device));
+          
+          const fetched = Array.from(fetchedMap.values());
+
+          if (fetched.length > 0) {
+            // Hae PII-tiedot jos käyttäjä on Admin
+            if (role === 'Admin' || role === 'Global Admin') {
+              const piiPromises = fetched.map(d => getDocs(query(collection(db, 'device_pii'), where('Serial', '==', d.Serial))));
+              const piiSnaps = await Promise.all(piiPromises);
+              
+              piiSnaps.forEach((snap, index) => {
+                if (!snap.empty) {
+                  fetched[index].DeviceName = snap.docs[0].data().DeviceName;
+                  fetched[index].PrimaryUser = snap.docs[0].data().PrimaryUser;
+                }
+              });
+            }
+            
+            // Lisätään löydetyt laitteet paikalliseen tilaan, jolloin filteredDevices näyttää ne heti
+            setDevices(prev => {
+              const newDevices = [...prev];
+              fetched.forEach(newDev => {
+                if (!newDevices.some(d => d.Serial === newDev.Serial)) {
+                  newDevices.unshift(newDev); // Lisätään alkuun
+                }
+              });
+              return newDevices;
+            });
+          }
+        } catch (e) {
+          console.error("Server search fallback failed", e);
+        } finally {
+          setServerSearchLoading(false);
+        }
+      };
+
+      const timeoutId = setTimeout(searchServer, 500); // Pieni viive, jotta käyttäjä ehtii kirjoittaa loppuun
+      return () => clearTimeout(timeoutId);
+    }
+  }, [searchTerm, filteredDevices.length, loading, role]);
 
   const getDeviceIcon = (type: string | undefined) => {
     switch (type?.toLowerCase()) {
@@ -318,9 +386,12 @@ export function DeviceList() {
                     {searchTerm ? (
                       <div className="empty-state">
                         <p>Laitetta <strong>{searchTerm}</strong> ei löytynyt.</p>
-                        <button className="btn btn-primary" style={{ marginTop: '1rem' }} onClick={() => alert('Uuden laitteen lisäys tulossa (arvo: ' + searchTerm + ')')}>
-                          + Lisää uusi laite numerolla {searchTerm}
-                        </button>
+                        {serverSearchLoading && <p className="text-gray-500 text-sm mt-2">Etsitään palvelimelta...</p>}
+                        {!serverSearchLoading && (
+                          <button className="btn btn-primary" style={{ marginTop: '1rem' }} onClick={() => alert('Uuden laitteen lisäys tulossa (arvo: ' + searchTerm + ')')}>
+                            + Lisää uusi laite numerolla {searchTerm}
+                          </button>
+                        )}
                       </div>
                     ) : (
                       <span>Ei tuloksia valitulla välilehdellä.</span>

@@ -27,7 +27,11 @@ Sovellus noudattaa erittäin tiukkaa tunnistautumis- ja pääsynhallintapolitiik
 3. **Käyttäjäroolit:**
    - **Global Admin:** Kaikki oikeudet koko tietokantaan ja roolien hallintaan.
    - **Admin:** Oikeus lukea henkilötietoja ja päivittää olemassa olevien laitteiden tilatietoja (esim. `LastCheckIn` ja `DeviceStatus`).
-   - **User (Peruskäyttäjä):** Vain lukuoikeus julkisiin, ei-yksilöiviin laitetietoihin.
+   - **User (Peruskäyttäjä):** Pääsy on rajattu tiukasti ainoastaan skanneri-näkymään (Scanner). He eivät pääse tarkastelemaan laitteiden massalistausta (Devices) tai hälytyskeskusta (Alerts). Pääsy laitetietoihin tapahtuu vain laitekohtaisesti skannauksen yhteydessä (Least Privilege).
+
+## Kehitysympäristön tietoturva (Localhost)
+
+Viivakoodiskannerin vaatiman kamerapääsyn vuoksi myös paikallinen kehitysympäristö (localhost) käyttää aina salattua HTTPS-yhteyttä. Tämä on toteutettu Vite-konfiguraatiossa (`@vitejs/plugin-basic-ssl`), mikä varmistaa, että selaimen asettamat tietoturvavaatimukset (Secure Context) täyttyvät ja kehityksenaikainen dataliikenne on suojattua.
 
 ## Tietokannan turvallisuus (Firestore Rules)
 
@@ -48,3 +52,9 @@ Järjestelmä on integroitu suoraan laitehallintajärjestelmiin (Microsoft Intun
 - **Tokenien suojaus (Credentials):** Laiterekisterin selainkäyttöliittymä ei koskaan käsittele eikä varastoi Microsoft Graph API:n tai Google Admin API:n salaisuuksia (Client Secret). Nämä avaimet sijaitsevat turvallisesti Google Cloudin Secret Managerissa ja ovat ainoastaan Cloud Functions -taustapalvelun saatavilla.
 - **Sovellustason käyttöoikeudet (Application Permissions):** Koska käyttäjät voivat kirjautua sekä Google- että Microsoft-tunnuksilla, taustapalvelu hyödyntää itsenäistä sovellustason autentikointia muodostaessaan yhteyden Graph API:in. Laiterekisteri toimii portinvartijana: se validoi selaimesta tulevan HTTPS-kutsun tekijän roolin (RBAC, vain Admin / Global Admin) ennen kuin se välittää muutospyynnön (esim. `DeviceName` tai `PrimaryUser`) eteenpäin Intuneen.
 - **Muokkauksen rajoitukset:** Ylläpitäjät pystyvät muokkaamaan ainoastaan laitteen nimeä (`DeviceName`) ja pääkäyttäjää (`PrimaryUser`). Laitteen sarjanumero (`Serial`) on ohjelmallisesti lukittu taustajärjestelmässä, eikä sitä voi muuttaa API-kutsujen tai käyttöliittymän kautta. Näin estetään laitteiden identiteetin väärentäminen.
+
+## Intune Käyttäjähaku (User Search)
+
+Sovellus mahdollistaa Azure AD -käyttäjien hakemisen Microsoft Graph API:n kautta (esim. sähköpostiosoitteiden automaattitäydennys).
+- **Turvallinen välityspalvelin (Proxy):** Koska Graph API:n käyttäjähaku vaatii laajan "User.Read.All" -oikeuden koko Azure AD:hen, selain ei koskaan suorita näitä kyselyitä suoraan. Haut ohjataan Cloud Function -rajapinnan (`searchIntuneUsers`) läpi.
+- **Kovakoodattu RBAC-varmennus:** Ennen kuin Cloud Function välittää hakupyynnön eteenpäin Microsoftille, se tarkistaa (hardcoded checks + tietokantakysely) että kyselyn tekijä on ehdottomasti Global Admin tai Admin -roolissa. Vaikka tavallinen käyttäjä onnistuisi kutsumaan kyseistä funktiota suoraan (esim. selaimen kehittäjätyökaluilla), haku hylätään automaattisesti taustajärjestelmässä (Permission Denied). Tämä estää laajennetun "User.Read.All" -oikeuden vuotamisen.

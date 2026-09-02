@@ -20,6 +20,10 @@ export function Layout() {
     return (localStorage.getItem('theme') as 'light' | 'dark') || 'light';
   });
 
+  const activeNavItems = role === 'User' 
+    ? navItems.filter(item => item.path === '/scanner') 
+    : navItems;
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
@@ -37,7 +41,7 @@ export function Layout() {
           <img src={eduksLogo} alt="EDU Laiterekisteri Logo" style={{ maxWidth: '100%', height: 'auto', maxHeight: '60px' }} />
         </div>
         <nav style={{ flex: 1 }}>
-          {navItems.map((item) => (
+          {activeNavItems.map((item) => (
             <NavLink 
               key={item.path} 
               to={item.path} 
@@ -165,7 +169,7 @@ export function Layout() {
       </div>
 
       <nav className="bottom-nav">
-        {navItems.map((item) => (
+        {activeNavItems.map((item) => (
           <NavLink 
             key={item.path} 
             to={item.path} 

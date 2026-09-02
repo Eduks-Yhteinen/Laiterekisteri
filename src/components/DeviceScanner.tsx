@@ -29,7 +29,12 @@ export function DeviceScanner({ isOpen, onClose, onScanSuccess }: DeviceScannerP
 
   useEffect(() => {
     if (!isOpen) {
-      stopScanner();
+      if (html5QrCode.current && isScanning.current) {
+        html5QrCode.current.stop().then(() => {
+            isScanning.current = false;
+            html5QrCode.current?.clear();
+        }).catch(console.error);
+      }
       setHasPermission(false);
       setError(null);
       return;
@@ -49,7 +54,12 @@ export function DeviceScanner({ isOpen, onClose, onScanSuccess }: DeviceScannerP
   // Clean up on unmount
   useEffect(() => {
     return () => {
-      stopScanner();
+      if (html5QrCode.current && isScanning.current) {
+        html5QrCode.current.stop().then(() => {
+            isScanning.current = false;
+            html5QrCode.current?.clear();
+        }).catch(console.error);
+      }
     };
   }, []);
 

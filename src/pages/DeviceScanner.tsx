@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { Camera, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { Camera, CheckCircle, XCircle, RefreshCw, Edit } from 'lucide-react';
 import { db } from '../firebase';
 import type { Device } from '../types';
 import { DeviceSchema } from '../schemas';
+import { DeviceEditModal } from '../components/DeviceEditModal';
 import './DeviceScanner.css';
 
 export function DeviceScanner() {
@@ -14,6 +15,7 @@ export function DeviceScanner() {
   const [loading, setLoading] = useState(false);
   const [cameras, setCameras] = useState<any[]>([]);
   const [currentCameraId, setCurrentCameraId] = useState<string | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const html5QrCode = useRef<Html5Qrcode | null>(null);
   const isScanning = useRef<boolean>(false);
@@ -21,7 +23,12 @@ export function DeviceScanner() {
   useEffect(() => {
     startScanner();
     return () => {
-      stopScanner().catch(console.error);
+      if (html5QrCode.current && isScanning.current) {
+        html5QrCode.current.stop().then(() => {
+            isScanning.current = false;
+            html5QrCode.current?.clear();
+        }).catch(console.error);
+      }
     };
   }, []);
 
@@ -240,12 +247,20 @@ export function DeviceScanner() {
                         : 'Ei inventoitu'}
                     </span>
                   </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Vuokranpäättyminen</span>
+                    <span className="detail-value">{deviceData.LeaseEnd || 'Ei tiedossa'}</span>
+                  </div>
                 </div>
 
-                <div className="action-buttons">
+                <div className="action-buttons" style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
                   <button className="btn-primary w-full" onClick={handleUpdateCheckIn}>
                     <Camera size={18} />
                     Päivitä inventointi (Nyt)
+                  </button>
+                  <button className="btn-secondary w-full" onClick={() => setIsEditModalOpen(true)}>
+                    <Edit size={18} />
+                    Muokkaa
                   </button>
                 </div>
               </div>
@@ -257,6 +272,18 @@ export function DeviceScanner() {
           </div>
         )}
       </div>
+
+      {deviceData && (
+        <DeviceEditModal 
+          device={deviceData}
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          onSaveSuccess={() => {
+            setIsEditModalOpen(false);
+            processScannedSerial(deviceData.Serial);
+          }}
+        />
+      )}
     </div>
   );
 }

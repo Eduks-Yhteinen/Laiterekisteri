@@ -1,9 +1,0 @@
-Client ID: 831308198442-kkco0qal3s4lp7nd6iuapd8j8fmk8h1f.apps.googleusercontent.com
-Client Secret: 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
-Creation date: 3 February 2026, 10:31:18 GMT+2
-
-
-Authorization URL: https://accounts.google.com/o/oauth2/v2/auth
-Token URL: https://oauth2.googleapis.com/token
-Refresh URL: https://oauth2.googleapis.com/token
-Scope: https://www.googleapis.com/auth/bigquery

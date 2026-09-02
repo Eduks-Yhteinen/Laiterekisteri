@@ -7,7 +7,11 @@ const INTUNE_CLIENT_ID = functions.params.defineSecret("INTUNE_CLIENT_ID");
 const INTUNE_CLIENT_SECRET = functions.params.defineSecret("INTUNE_CLIENT_SECRET");
 const INTUNE_TENANT_ID = functions.params.defineString("INTUNE_TENANT_ID");
 
-// Helper to authenticate with MSAL
+// * How does this work? (Authentication)
+// This helper function acquires a Microsoft Graph API access token using the OAuth 2.0 Client Credentials flow.
+// It uses `@azure/msal-node` to authenticate our server-to-server application (this Firebase Function)
+// against the Azure Active Directory tenant. The token allows us to call the Intune API without user interaction.
+// The `.default` scope grants all application permissions configured in the Azure portal for this client ID.
 async function getGraphToken(clientId: string, clientSecret: string, tenantId: string): Promise<string | null> {
   const msalConfig = {
     auth: {
@@ -30,7 +34,9 @@ async function getGraphToken(clientId: string, clientSecret: string, tenantId: s
   }
 }
 
-// The actual sync logic
+// * How does this work? (Scheduled Sync)
+// This is a cron job that runs every hour on Firebase. It pulls all Windows devices from Intune
+// and synchronizes them into our local Firestore database (`devices` and `device_pii` collections).
 export const syncIntuneWindows = functions.scheduler.onSchedule(
   {
     schedule: "every 1 hours",
@@ -108,11 +114,18 @@ export const syncIntuneWindows = functions.scheduler.onSchedule(
 
         await batch.commit();
 
-        // Handle pagination
+        // * How does this work? (Pagination)
+        // Intune API returns a maximum number of records per request (default 1000). 
+        // If there are more devices, it provides an `@odata.nextLink` URL in the response.
+        // The while loop continues fetching this URL until all devices are retrieved.
         url = data["@odata.nextLink"] || null;
       }
 
-      // --- Ghost Device Cleanup ---
+      // * How does this work? (Ghost Device Cleanup)
+      // "Ghost devices" are devices that exist in our local Firestore but have been deleted or unenrolled from Intune.
+      // After successfully fetching ALL current Windows devices from Intune (tracked in `syncedSerials`),
+      // we query our local database for all Windows devices. If a local device is NOT in the `syncedSerials` set,
+      // we know it was removed from Intune, so we delete it from both `devices` and `device_pii` collections to keep data clean.
       if (syncedSerials.size > 0) {
         console.log(`Successfully synced ${syncedSerials.size} Windows devices from Intune.`);
 
@@ -150,7 +163,10 @@ export const syncIntuneWindows = functions.scheduler.onSchedule(
 export const updateIntuneDevice = functions.https.onCall(
   { secrets: [INTUNE_CLIENT_ID, INTUNE_CLIENT_SECRET, INTUNE_TENANT_ID] },
   async (request) => {
-    // 1. Authentication & Authorization
+    // * How does this work? (RBAC - Role-Based Access Control)
+    // This Callable function is invoked directly from the frontend React app.
+    // 1. Authentication & Authorization Check:
+    // First, we verify that the user is logged in (`request.auth`).
     if (!request.auth) {
       throw new functions.https.HttpsError("unauthenticated", "User must be logged in.");
     }
@@ -162,7 +178,11 @@ export const updateIntuneDevice = functions.https.onCall(
 
     const db = admin.firestore();
 
-    // Check global admin
+    // * How does this work? (Admin Validation)
+    // We check if the user is a hardcoded "Global Admin".
+    // If not, we query the `user_roles` collection in Firestore to see if they were manually granted the "admin" role.
+    // The "asentaja@lappee.fi" account is also given a hardcoded admin pass.
+    // If they aren't an admin, the function throws a `permission-denied` error, stopping the execution securely on the backend.
     const isGlobalAdmin = email === "pasi.hulkkonen@edu.lappeenranta.fi" || email === "joni.hikipaa@edu.lappeenranta.fi";
 
     let isAdmin = isGlobalAdmin;
@@ -200,6 +220,9 @@ export const updateIntuneDevice = functions.https.onCall(
       return { success: true, message: "No changes requested." };
     }
 
+    // * How does this work? (Updating Intune)
+    // We make a PATCH request to the specific device's URL in the Microsoft Graph API.
+    // The body contains only the fields that were modified.
     const url = `https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/${deviceId}`;
     const res = await fetch(url, {
       method: 'PATCH',
