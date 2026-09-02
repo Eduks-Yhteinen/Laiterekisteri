@@ -1,5 +1,7 @@
 # Laiterekisteri
 
+**Tuotantoympäristö (Live URL):** [https://eduks-laiterekisteri.web.app](https://eduks-laiterekisteri.web.app)
+
 Laiterekisteri on nykyaikainen verkkosovellus mobiililaitteiden (kuten puhelimien, tablettien ja tietokoneiden) sekä muun irtaimiston hallintaan. Sovellus on suunniteltu erityisesti kenttätyöhön: sen sisäänrakennettu viivakoodiskanneri toimii suoraan selaimessa ja käyttää laitteen omaa kameraa (toimii offline-tilassa, paikallisesti).
 
 Projektin lähdekoodi toimii myös **oppimisympäristönä**. Koodiin on jätetty runsaasti kommentteja ("Värikoodattuja", kts. kohta Koodin lukeminen) joiden tarkoituksena on opettaa, miksi asioita on tehty tietyllä tavalla.

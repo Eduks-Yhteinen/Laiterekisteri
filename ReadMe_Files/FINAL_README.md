@@ -2,6 +2,8 @@
 
 Welcome to the **Laiterekisteri** project for Lappeenranta EDU. This application replaces legacy systems (Excel/Power Automate) with a modern, secure, and robust web application built for field workers and IT administrators.
 
+**Production Environment:** [https://eduks-laiterekisteri.web.app](https://eduks-laiterekisteri.web.app)
+
 ---
 
 ## 🏗️ Architecture & Code Standards (@mikko-mentor & @kalle-coder)
