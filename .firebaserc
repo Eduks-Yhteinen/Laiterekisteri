@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "laiterekisteri-791ee"
-  }
+  },
+  "targets": {
+    "laiterekisteri-791ee": {
+      "hosting": {
+        "main": [
+          "eduks-laiterekisteri"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
