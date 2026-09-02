@@ -215,21 +215,27 @@ export function DeviceList() {
             const qNameUpper = query(collection(db, 'device_pii'), where('DeviceName', '>=', term.toUpperCase()), where('DeviceName', '<=', term.toUpperCase() + '\uf8ff'), limit(5));
             const qNameExact = query(collection(db, 'device_pii'), where('DeviceName', '>=', term), where('DeviceName', '<=', term + '\uf8ff'), limit(5));
             promises.push(getDocs(qNameUpper), getDocs(qNameExact));
+            
+            // Jos hakusana on pelkkiä numeroita, yritetään myös yleisimmillä etuliitteillä
+            if (/^\d+$/.test(term)) {
+              const qNameC = query(collection(db, 'device_pii'), where('DeviceName', '>=', `C${term}`), where('DeviceName', '<=', `C${term}\uf8ff`), limit(5));
+              const qNameW = query(collection(db, 'device_pii'), where('DeviceName', '>=', `W${term}`), where('DeviceName', '<=', `W${term}\uf8ff`), limit(5));
+              promises.push(getDocs(qNameC), getDocs(qNameW));
+            }
           }
           
           const results = await Promise.all(promises);
           const snapUpper = results[0];
           const snapExact = results[1];
-          const piiSnapUpper = results[2];
-          const piiSnapExact = results[3];
           
           const fetchedMap = new Map<string, Device>();
           snapUpper.forEach(doc => fetchedMap.set(doc.id, doc.data() as Device));
           snapExact.forEach(doc => fetchedMap.set(doc.id, doc.data() as Device));
           
           const piiSerials = new Set<string>();
-          if (piiSnapUpper) piiSnapUpper.forEach(doc => piiSerials.add(doc.data().Serial));
-          if (piiSnapExact) piiSnapExact.forEach(doc => piiSerials.add(doc.data().Serial));
+          for (let i = 2; i < results.length; i++) {
+            results[i].forEach(doc => piiSerials.add(doc.data().Serial));
+          }
           
           if (piiSerials.size > 0) {
             const serials = Array.from(piiSerials).filter(s => !fetchedMap.has(s));
