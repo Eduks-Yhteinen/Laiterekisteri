@@ -1,6 +1,5 @@
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import type { Device } from '../types';
 
 /**
  * MOCK: Hakee laitteen tiedot Google Administa ja erottelee PII-tiedot (Etu- ja Sukunimi)

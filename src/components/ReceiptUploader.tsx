@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { UploadCloud, FileText, CheckCircle, XCircle, Loader2, FileSpreadsheet } from 'lucide-react';
+import { UploadCloud, FileText, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { db, vertexAI } from '../firebase';
 import { getGenerativeModel } from 'firebase/ai';
