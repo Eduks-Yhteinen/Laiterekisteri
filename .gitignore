@@ -25,3 +25,9 @@ dist-ssr
 
 # Firebase Admin SDK Service Account
 service-account.json
+serviceAccountKey.json
+
+# Implementation Plans
+implementation_changes.txt
+implementation_plan.md
+Implimentation Plan

@@ -19,6 +19,9 @@ const firebaseConfig = {
 // * 2. Alustetaan itse sovellusyhteys yllä olevilla asetuksilla
 const app = initializeApp(firebaseConfig);
 
+import { getAI, AgentPlatformBackend } from "firebase/ai";
+export const vertexAI = getAI(app, { backend: new AgentPlatformBackend("europe-west1") });
+
 // * 3. Alustetaan Firestore (Tietokanta)
 // Käytämme persistentLocalCache-ominaisuutta. Tämä tallentaa luetut tiedot selaimen
 // välimuistiin. Tämä on tärkeää kenttätyössä: jos yhteys katkeaa (offline), 

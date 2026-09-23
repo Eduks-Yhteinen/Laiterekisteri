@@ -1,5 +1,5 @@
 export type ProvisionStatus = 'ACTIVE' | 'INACTIVE' | 'DEPROVISIONED';
-export type DeviceStatus = 'Käytössä' | 'Varastossa' | 'Huollossa' | 'Rikkoutunut' | 'Kadonnut';
+export type DeviceStatus = 'Käytössä' | 'Varastossa' | 'Huollossa' | 'Rikkoutunut' | 'Kadonnut' | 'Poistettu';
 
 export interface Device {
   Serial: string;
@@ -14,6 +14,10 @@ export interface Device {
   DeviceStatus: DeviceStatus;
   LeaseEnd: string | null;
   LeaseType: string;
+  PurchaseDate?: string; // Hankintapäivä (ISO)
+  PoistonSyy?: string;
+  PoistoPaiva?: string; // ISO date string
+  ReceiptUrl?: string;
   // Optional PII fields, only populated if user has Admin rights
   DeviceName?: string;
   PrimaryUser?: string;

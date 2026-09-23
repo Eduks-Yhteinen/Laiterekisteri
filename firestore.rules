@@ -29,6 +29,11 @@ service cloud.firestore {
           || request.auth.token.email == 'asentaja@lappee.fi';
     }
 
+    function getAdminCostCenter() {
+      let roleDoc = /databases/$(database)/documents/user_roles/$(request.auth.uid);
+      return exists(roleDoc) ? get(roleDoc).data.CostCenter : null;
+    }
+
     // ---------------------------------------------------
     // PERMISSIONS
     // ---------------------------------------------------
@@ -41,18 +46,26 @@ service cloud.firestore {
 
     // PII Data (Only Global Admins & Admins can read/write)
     match /device_pii/{serial} {
-      allow read, write: if isSchoolUser() && (isGlobalAdmin() || isAdmin());
+      allow read, write: if isSchoolUser() && isGlobalAdmin();
+      // Digari Admin voi lukea ja kirjoittaa PII-tietoja, JOS vastaava laite kuuluu heidän kustannuspaikkaansa.
+      allow read, write: if isSchoolUser() && isAdmin() && get(/databases/$(database)/documents/devices/$(serial)).data.CostCenter == getAdminCostCenter();
     }
 
     // Public Device Data
     match /devices/{serial} {
-      allow read: if isSchoolUser();
+      // Read: Global admin näkee kaiken. Digari admin näkee vain oman kustannuspaikkansa laitteet.
+      allow read: if isSchoolUser() && (isGlobalAdmin() || (isAdmin() && resource.data.CostCenter == getAdminCostCenter()) || request.auth.token.email == 'asentaja@lappee.fi');
       
-      // Admins can ONLY update scan status fields
-      allow update: if isSchoolUser() && isAdmin() 
-                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['LastCheckIn', 'DeviceStatus']);
+      // Update/Create: Global Admin voi tehdä mitä vain.
+      // Digari Admin voi päivittää vain oman kustannuspaikkansa laitteita ja luoda uusia omaan kustannuspaikkaansa.
+      allow create: if isSchoolUser() && (isGlobalAdmin() || (isAdmin() && request.resource.data.CostCenter == getAdminCostCenter() && request.resource.data.Status != "Poistettu"));
+      allow update: if isSchoolUser() && (
+        isGlobalAdmin() || 
+        (isAdmin() && resource.data.CostCenter == getAdminCostCenter() && request.resource.data.CostCenter == getAdminCostCenter())
+      );
       
-      allow write: if isSchoolUser() && isGlobalAdmin();
+      // Salli "Hard Delete" ainoastaan Global Admineille (muille vain "Poistettu" tila, mikä hoidetaan update-säännössä, josta ei ole rajoitettu "Status"-kenttää).
+      allow delete: if isSchoolUser() && isGlobalAdmin();
     }
     
     // All other collections are denied by default since the global wildcard was removed.

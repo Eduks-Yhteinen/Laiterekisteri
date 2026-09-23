@@ -1,17 +1,18 @@
 import { useEffect, useState, useRef } from 'react';
 import { collection, getDocs, query, limit, startAfter, QueryDocumentSnapshot, where } from 'firebase/firestore';
-import { Search, Camera, Laptop, Smartphone, HelpCircle, Edit } from 'lucide-react';
+import { Search, Camera, Laptop, Smartphone, HelpCircle, Edit, Copy, Check, ArrowUp, ArrowDown } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { db } from '../firebase';
 import { DeviceScanner } from '../components/DeviceScanner';
 import { DeviceEditModal } from '../components/DeviceEditModal';
+import { DeviceAddModal } from '../components/DeviceAddModal';
 import { useAuth } from '../hooks/useAuth';
 import type { Device, DevicePII } from '../types';
 import './DeviceList.css';
 
-import { formatDate } from '../dateUtils';
+import { formatDate, isOlderThan30Days, isExpiringWithin30Days } from '../dateUtils';
 
-const TABS = ['Kaikki', 'Windows', 'Apple', 'Android', 'Chromebook'];
+const TABS = ['Kaikki', 'Windows', 'Apple', 'Android', 'Chromebook', 'Arkisto'];
 
 export function DeviceList() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -27,7 +28,13 @@ export function DeviceList() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
+  const [isAddDeviceModalOpen, setIsAddDeviceModalOpen] = useState(false);
   
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
+  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
+  const [quickRule, setQuickRule] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
   const [serverSearchLoading, setServerSearchLoading] = useState(false);
   const searchedTermsRef = useRef<Set<string>>(new Set());
 
@@ -47,15 +54,21 @@ export function DeviceList() {
         // * Rajoitetaan kerralla haettava määrä sataan (limit 100),
         // jotta selain ei jumiudu, jos laitteita on kymmeniä tuhansia (Paginointi).
         if (activeTab === 'Kaikki') {
-          q = query(collection(db, 'devices'), limit(100));
+          q = query(collection(db, 'devices'), where('DeviceStatus', '!=', 'Poistettu'), limit(100));
+        } else if (activeTab === 'Arkisto') {
+          q = query(collection(db, 'devices'), where('DeviceStatus', '==', 'Poistettu'), limit(100));
         } else {
+          // You cannot have multiple inequality filters in Firestore, so we might need client side filtering or composite index. 
+          // Actually, if we just query DeviceType, we can filter out 'Poistettu' on the client to avoid complex index requirements.
           q = query(collection(db, 'devices'), where('DeviceType', '==', activeTab), limit(100));
         }
 
         const querySnapshot = await getDocs(q);
         const fetched: Device[] = [];
         querySnapshot.forEach((doc: QueryDocumentSnapshot) => {
-          fetched.push(doc.data() as Device);
+          const d = doc.data() as Device;
+          if (activeTab !== 'Arkisto' && activeTab !== 'Kaikki' && d.DeviceStatus === 'Poistettu') return;
+          fetched.push(d);
         });
 
         // * How does this work? (RBAC & PII Fetching)
@@ -120,7 +133,9 @@ export function DeviceList() {
     try {
       let q;
       if (activeTab === 'Kaikki') {
-        q = query(collection(db, 'devices'), startAfter(lastVisible), limit(100));
+        q = query(collection(db, 'devices'), where('DeviceStatus', '!=', 'Poistettu'), startAfter(lastVisible), limit(100));
+      } else if (activeTab === 'Arkisto') {
+        q = query(collection(db, 'devices'), where('DeviceStatus', '==', 'Poistettu'), startAfter(lastVisible), limit(100));
       } else {
         q = query(collection(db, 'devices'), where('DeviceType', '==', activeTab), startAfter(lastVisible), limit(100));
       }
@@ -128,7 +143,9 @@ export function DeviceList() {
       const querySnapshot = await getDocs(q);
       const fetched: Device[] = [];
       querySnapshot.forEach((doc: QueryDocumentSnapshot) => {
-        fetched.push(doc.data() as Device);
+        const d = doc.data() as Device;
+        if (activeTab !== 'Arkisto' && activeTab !== 'Kaikki' && d.DeviceStatus === 'Poistettu') return;
+        fetched.push(d);
       });
 
       // * RBAC for loadMore
@@ -186,11 +203,53 @@ export function DeviceList() {
     setSearchParams(searchParams);
   };
 
-  const filteredDevices = devices.filter(d => 
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const handleCopy = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  let filteredDevices = devices.filter(d => 
     d.Serial.toLowerCase().includes(searchTerm.toLowerCase()) || 
     d.Model.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (d.DeviceName && d.DeviceName.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  if (quickRule === 'alerts') {
+    filteredDevices = filteredDevices.filter(d => 
+       isOlderThan30Days(d.LastCheckIn) || (d.AutoUpdateExpiration && isExpiringWithin30Days(d.AutoUpdateExpiration)) || (d.LeaseEnd && isExpiringWithin30Days(d.LeaseEnd))
+    );
+  } else if (quickRule === 'storage') {
+    filteredDevices = filteredDevices.filter(d => d.DeviceStatus === 'Varastossa');
+  }
+
+  Object.keys(columnFilters).forEach(key => {
+    const val = columnFilters[key].toLowerCase();
+    if (val) {
+       filteredDevices = filteredDevices.filter(d => {
+          const field = (d as any)[key];
+          return field ? String(field).toLowerCase().includes(val) : false;
+       });
+    }
+  });
+
+  if (sortConfig) {
+    filteredDevices.sort((a, b) => {
+      const aVal = (a as any)[sortConfig.key] || '';
+      const bVal = (b as any)[sortConfig.key] || '';
+      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
 
   // * Palvelinpuolen haku: Jos paikallinen suodatus ei tuota tuloksia ja hakusana on riittävän pitkä,
   // yritetään hakea tietokannasta (esim. skannerin syöttämä sarjanumero, jota ei oltu vielä ladattu)
@@ -317,6 +376,26 @@ export function DeviceList() {
     ));
   };
 
+  const renderSortableHeader = (title: string, key: string) => (
+    <th onClick={() => handleSort(key)} className="sortable-header" style={{ cursor: 'pointer', verticalAlign: 'top' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+        <span>{title}</span>
+        {sortConfig?.key === key ? (
+          sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+        ) : <span style={{ width: 14 }} />}
+      </div>
+      <input 
+        type="text" 
+        className="column-filter-input"
+        placeholder="Suodata..." 
+        value={columnFilters[key] || ''}
+        onClick={(e) => e.stopPropagation()}
+        onChange={(e) => setColumnFilters(prev => ({ ...prev, [key]: e.target.value }))}
+        style={{ width: '100%', padding: '2px 4px', fontSize: '0.8rem', borderRadius: '4px', border: '1px solid #ccc' }}
+      />
+    </th>
+  );
+
   return (
     <div className="device-list-page">
       <div className="page-header">
@@ -349,6 +428,30 @@ export function DeviceList() {
         ))}
       </div>
 
+      <div className="quick-rules-container" style={{ marginBottom: '1rem', display: 'flex', gap: '0.5rem' }}>
+        <button 
+          className={`btn-secondary ${quickRule === null ? 'active' : ''}`} 
+          onClick={() => setQuickRule(null)}
+          style={{ padding: '0.25rem 0.75rem', fontSize: '0.875rem' }}
+        >
+          Kaikki
+        </button>
+        <button 
+          className={`btn-secondary ${quickRule === 'alerts' ? 'active' : ''}`} 
+          onClick={() => setQuickRule('alerts')}
+          style={{ padding: '0.25rem 0.75rem', fontSize: '0.875rem' }}
+        >
+          Vain hälytykset
+        </button>
+        <button 
+          className={`btn-secondary ${quickRule === 'storage' ? 'active' : ''}`} 
+          onClick={() => setQuickRule('storage')}
+          style={{ padding: '0.25rem 0.75rem', fontSize: '0.875rem' }}
+        >
+          Varastossa
+        </button>
+      </div>
+
       {error ? (
         <div className="p-4 text-red-500">Virhe: {error}</div>
       ) : (
@@ -356,25 +459,37 @@ export function DeviceList() {
           <table className="device-table">
             <thead>
               <tr>
-                <th>Sarjanumero</th>
-                <th>Malli</th>
+                {renderSortableHeader('Sarjanumero', 'Serial')}
+                {renderSortableHeader('Malli', 'Model')}
                 {(role === 'Admin' || role === 'Global Admin') && (
                   <>
-                    <th>Nimi</th>
-                    <th>Käyttäjä</th>
+                    {renderSortableHeader('Nimi', 'DeviceName')}
+                    {renderSortableHeader('Käyttäjä', 'PrimaryUser')}
                   </>
                 )}
-                <th>Laitetyyppi</th>
-                <th>Tila</th>
-                <th>Viim. nähty</th>
-                <th>Vuokranpäättyminen / AUE</th>
-                {(role === 'Admin' || role === 'Global Admin') && <th>Toiminnot</th>}
+                {renderSortableHeader('Laitetyyppi', 'DeviceType')}
+                {renderSortableHeader('Tila', 'DeviceStatus')}
+                {renderSortableHeader('Viim. nähty', 'LastCheckIn')}
+                {renderSortableHeader('Vuokranpäättyminen / AUE', 'AutoUpdateExpiration')}
+                {(role === 'Admin' || role === 'Global Admin') && <th style={{ verticalAlign: 'top' }}>Toiminnot</th>}
               </tr>
             </thead>
             <tbody>
               {loading ? renderSkeletonRows() : filteredDevices.map(d => (
                 <tr key={d.Serial}>
-                  <td data-label="Sarjanumero" className="font-semibold font-mono">{d.Serial}</td>
+                  <td data-label="Sarjanumero" className="font-semibold font-mono">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      {d.Serial}
+                      <button 
+                        onClick={() => handleCopy(d.Serial, d.Serial)}
+                        className="btn-icon-only"
+                        title="Kopioi sarjanumero"
+                        style={{ padding: '2px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#666' }}
+                      >
+                        {copiedId === d.Serial ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                      </button>
+                    </div>
+                  </td>
                   <td data-label="Malli">{d.Model}</td>
                   {(role === 'Admin' || role === 'Global Admin') && (
                     <>
@@ -420,7 +535,7 @@ export function DeviceList() {
                         <p>Laitetta <strong>{searchTerm}</strong> ei löytynyt.</p>
                         {serverSearchLoading && <p className="text-gray-500 text-sm mt-2">Etsitään palvelimelta...</p>}
                         {!serverSearchLoading && (
-                          <button className="btn btn-primary" style={{ marginTop: '1rem' }} onClick={() => alert('Uuden laitteen lisäys tulossa (arvo: ' + searchTerm + ')')}>
+                          <button className="btn btn-primary" style={{ marginTop: '1rem' }} onClick={() => setIsAddDeviceModalOpen(true)}>
                             + Lisää uusi laite numerolla {searchTerm}
                           </button>
                         )}
@@ -468,6 +583,18 @@ export function DeviceList() {
           onClose={() => setEditingDevice(null)}
           onSaveSuccess={(updated) => {
             setDevices(prev => prev.map(d => d.Serial === updated.Serial ? updated : d));
+          }}
+        />
+      )}
+
+      {isAddDeviceModalOpen && (
+        <DeviceAddModal
+          isOpen={true}
+          initialSerial={searchTerm}
+          onClose={() => setIsAddDeviceModalOpen(false)}
+          onSaveSuccess={(newDev) => {
+            setDevices(prev => [newDev, ...prev]);
+            setSearchTerm(''); // Tyhjennä haku, jotta uusi laite näkyy
           }}
         />
       )}

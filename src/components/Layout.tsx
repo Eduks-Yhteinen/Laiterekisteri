@@ -38,7 +38,7 @@ export function Layout() {
       {/* * Pöytäkoneluokan sivupalkki (Desktop Sidebar) */}
       <aside className="sidebar">
         <div style={{ padding: '0 1rem 2rem', display: 'flex', justifyContent: 'center' }}>
-          <img src={eduksLogo} alt="EDU Laiterekisteri Logo" style={{ maxWidth: '100%', height: 'auto', maxHeight: '60px' }} />
+          <img src={theme === 'dark' ? '/favicon.png' : eduksLogo} alt="EDU Laiterekisteri Logo" style={{ maxWidth: '100%', height: 'auto', maxHeight: '60px', objectFit: 'contain' }} />
         </div>
         <nav style={{ flex: 1 }}>
           {activeNavItems.map((item) => (

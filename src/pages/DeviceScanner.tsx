@@ -6,6 +6,8 @@ import { db } from '../firebase';
 import type { Device } from '../types';
 import { DeviceSchema } from '../schemas';
 import { DeviceEditModal } from '../components/DeviceEditModal';
+import { ReceiptUploader } from '../components/ReceiptUploader';
+import { useAuth } from '../hooks/useAuth';
 import './DeviceScanner.css';
 
 export function DeviceScanner() {
@@ -16,6 +18,9 @@ export function DeviceScanner() {
   const [cameras, setCameras] = useState<any[]>([]);
   const [currentCameraId, setCurrentCameraId] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'kamera' | 'kuitti'>('kamera');
+  
+  const { role } = useAuth();
 
   const html5QrCode = useRef<Html5Qrcode | null>(null);
   const isScanning = useRef<boolean>(false);
@@ -173,10 +178,33 @@ export function DeviceScanner() {
   return (
     <div className="device-scanner-page">
       <h1 className="page-title">Skanneri</h1>
-      <p className="page-subtitle">Skannaa laitteen viivakoodi/QR-koodi inventointia varten.</p>
+      <p className="page-subtitle">Skannaa laitteen viivakoodi/QR-koodi tai lataa ostokuitti.</p>
 
-      <div className="scanner-container glass-panel">
-        <div className={`scanner-viewport ${scanResult ? 'hidden' : ''}`} style={{position: 'relative'}}>
+      {role === 'Global Admin' && (
+        <div className="tabs" style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+          <button 
+            className={`tab-btn ${activeTab === 'kamera' ? 'active' : ''}`}
+            onClick={() => setActiveTab('kamera')}
+            style={{ padding: '0.5rem 1rem', background: 'none', border: 'none', color: activeTab === 'kamera' ? 'var(--color-primary)' : 'inherit', fontWeight: activeTab === 'kamera' ? 'bold' : 'normal', cursor: 'pointer' }}
+          >
+            Viivakoodiskanneri
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'kuitti' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('kuitti');
+              stopScanner();
+            }}
+            style={{ padding: '0.5rem 1rem', background: 'none', border: 'none', color: activeTab === 'kuitti' ? 'var(--color-primary)' : 'inherit', fontWeight: activeTab === 'kuitti' ? 'bold' : 'normal', cursor: 'pointer' }}
+          >
+            Lataa Kuitti (OCR)
+          </button>
+        </div>
+      )}
+
+      {activeTab === 'kamera' && (
+        <div className="scanner-container glass-panel">
+          <div className={`scanner-viewport ${scanResult ? 'hidden' : ''}`} style={{position: 'relative'}}>
           <div id="reader"></div>
           {!scanResult && cameras.length > 1 && (
             <button 
@@ -272,6 +300,11 @@ export function DeviceScanner() {
           </div>
         )}
       </div>
+      )}
+
+      {activeTab === 'kuitti' && (
+        <ReceiptUploader />
+      )}
 
       {deviceData && (
         <DeviceEditModal 

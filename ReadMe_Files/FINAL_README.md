@@ -28,6 +28,11 @@ Security is woven into the architecture from the ground up, following the **Prin
 - **Secure Integrations:** Browser clients never communicate directly with Microsoft Graph API or Google Admin. All requests go through Firebase Cloud Functions which independently verify the user's Admin claims before taking action.
 - **Secret Management:** OAuth tokens and API secrets are securely stored in Google Cloud Secret Manager, entirely inaccessible from the frontend.
 
+### Service Account Permissions (Backup)
+Grant the necessary read permissions to the service account:
+- **Service Account Email:** `firebase-adminsdk-fbsvc@laiterekisteri-791ee.iam.gserviceaccount.com`
+- **Required Role:** They need to assign the "Cloud Datastore Viewer" (`roles/datastore.viewer`) role to this service account in the Google Cloud Console IAM page. (Note: If the script ever needs to write data back, it would need "Cloud Datastore User", but for this backup script, "Viewer" is sufficient).
+
 ## 🛡️ Privacy & GDPR (@timo-privacy)
 
 Handling student and staff data requires absolute care. We prioritize **Data Minimization** and local processing.

@@ -19,9 +19,34 @@
   gap: var(--spacing-4);
 }
 
+.alerts-col-left, .alerts-col-right {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
 @media (min-width: 1024px) {
   .alerts-grid {
     grid-template-columns: 1fr 1fr;
+    align-items: stretch;
+  }
+  
+  .alerts-col-right {
+    position: relative; 
+  }
+  
+  .inactive-alert {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+
+  .inactive-alert .device-list {
+    max-height: none;
+    flex: 1;
+    overflow-y: auto;
   }
 }
 
@@ -125,3 +150,6 @@
 
 .chart-alert { border-left: 4px solid var(--color-primary); } 
 .icon-info { color: var(--color-primary); }
+
+.hover-clickable:hover { background-color: rgba(0, 136, 254, 0.1); cursor: pointer; border-radius: 4px; }
+.hover-clickable { transition: background-color 0.2s; }
