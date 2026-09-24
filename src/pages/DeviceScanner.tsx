@@ -131,7 +131,21 @@ export function DeviceScanner() {
         const rawData = docSnap.data();
         try {
           const parsedData = DeviceSchema.parse(rawData);
-          setDeviceData(parsedData as Device);
+          const finalDeviceData = { ...parsedData } as Device;
+          
+          try {
+            const piiRef = doc(db, 'device_pii', serial);
+            const piiSnap = await getDoc(piiRef);
+            if (piiSnap.exists()) {
+              const piiData = piiSnap.data();
+              finalDeviceData.DeviceName = piiData.DeviceName;
+              finalDeviceData.PrimaryUser = piiData.PrimaryUser;
+            }
+          } catch (e) {
+            console.warn("Could not fetch PII data", e);
+          }
+
+          setDeviceData(finalDeviceData);
         } catch (validationErr: any) {
           console.error("Validation error:", validationErr);
           if (validationErr.errors) {
@@ -254,9 +268,25 @@ export function DeviceScanner() {
                 </div>
                 
                 <div className="detail-grid">
+                  {deviceData.DeviceName && (
+                    <div className="detail-item">
+                      <span className="detail-label">Laitteen nimi</span>
+                      <span className="detail-value">{deviceData.DeviceName}</span>
+                    </div>
+                  )}
+                  {deviceData.PrimaryUser && (
+                    <div className="detail-item">
+                      <span className="detail-label">Ensisijainen käyttäjä</span>
+                      <span className="detail-value">{deviceData.PrimaryUser}</span>
+                    </div>
+                  )}
                   <div className="detail-item">
                     <span className="detail-label">Malli</span>
                     <span className="detail-value">{deviceData.Model || 'Ei tiedossa'}</span>
+                  </div>
+                  <div className="detail-item">
+                    <span className="detail-label">Kustannuspaikka</span>
+                    <span className="detail-value">{deviceData.Kustannuspaikka || 'Ei tiedossa'}</span>
                   </div>
                   <div className="detail-item">
                     <span className="detail-label">Tila</span>

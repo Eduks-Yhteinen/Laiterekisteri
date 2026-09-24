@@ -144,6 +144,7 @@ export function DeviceAddModal({ isOpen, initialSerial = '', onClose, onSaveSucc
               <option value="Apple">Apple</option>
               <option value="Android">Android</option>
               <option value="Chromebook">Chromebook</option>
+              <option value="Opetustekniikka">Opetustekniikka</option>
             </select>
           </div>
 

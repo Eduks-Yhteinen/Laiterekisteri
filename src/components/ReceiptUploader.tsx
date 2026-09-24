@@ -4,6 +4,7 @@ import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/fire
 import { db, vertexAI } from '../firebase';
 import { getGenerativeModel } from 'firebase/ai';
 import * as XLSX from 'xlsx';
+import { DeviceAddModal } from './DeviceAddModal';
 
 interface UpdateSummary {
   serial: string;
@@ -18,6 +19,7 @@ export function ReceiptUploader() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<UpdateSummary[] | null>(null);
+  const [addingSerial, setAddingSerial] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -275,6 +277,17 @@ Palauta VAIN puhdas JSON-taulukko, ei mitään ylimääräistä tekstiä tai mar
                     {item.status !== 'success' && (
                       <div style={{ marginTop: '0.5rem', fontSize: '0.9rem', color: 'var(--color-error)' }}>
                         {item.message}
+                        {item.status === 'not-found' && (
+                          <div style={{ marginTop: '0.75rem' }}>
+                            <button 
+                              className="btn-secondary" 
+                              style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem' }}
+                              onClick={() => setAddingSerial(item.serial)}
+                            >
+                              Lisää uusi laite (Käsin)
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -283,6 +296,25 @@ Palauta VAIN puhdas JSON-taulukko, ei mitään ylimääräistä tekstiä tai mar
             </ul>
           )}
         </div>
+      )}
+
+      {addingSerial && (
+        <DeviceAddModal 
+          isOpen={!!addingSerial} 
+          initialSerial={addingSerial} 
+          onClose={() => setAddingSerial(null)} 
+          onSaveSuccess={(newDevice) => {
+             setSummary(prev => {
+                if (!prev) return prev;
+                return prev.map(i => 
+                   i.serial === newDevice.Serial 
+                     ? { ...i, status: 'success', model: newDevice.Model, message: undefined, updates: { 'Lisätty kantaan': 'Kyllä' } }
+                     : i
+                );
+             });
+             setAddingSerial(null);
+          }}
+        />
       )}
     </div>
   );

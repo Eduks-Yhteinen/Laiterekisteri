@@ -12,7 +12,7 @@ import './DeviceList.css';
 
 import { formatDate, isOlderThan30Days, isExpiringWithin30Days } from '../dateUtils';
 
-const TABS = ['Kaikki', 'Windows', 'Apple', 'Android', 'Chromebook', 'Arkisto'];
+const TABS = ['Kaikki', 'Windows', 'Apple', 'Android', 'Chromebook', 'Opetustekniikka', 'Arkisto'];
 
 export function DeviceList() {
   const [searchParams, setSearchParams] = useSearchParams();
